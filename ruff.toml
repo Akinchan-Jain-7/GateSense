@@ -4,6 +4,9 @@ target-version = "py312"
 line-length = 100
 # Tells the import sorter which top-level packages are "ours" (first-party).
 src = ["backend", "anpr", "simulator", "loadtests", "scripts"]
+# Colab notebooks are run by hand in Colab (shell magics, report strings); they are checked
+# by a dry run of their cells instead of the linter (see docs/PROGRESS.md, Phase 3).
+extend-exclude = ["anpr/notebooks"]
 
 [lint]
 select = [

@@ -53,6 +53,10 @@ READABLE = [
     # --- Several fixes in one read ------------------------------------------------
     ("DLO1A81234", "DL01AB1234", 2),
     ("KAO5MNOO42", "KA05MN0042", 3),  # beats KA05MNO042 (2 fixes but an odd shape)
+    # Real EasyOCR output (Phase 3 video run): S for 5 as well. Not KA0SMN0042: only Delhi
+    # writes 1-digit districts.
+    ("KAOSMNO042", "KA05MN0042", 3),
+    ("DL3CASO042", "DL3CAS0042", 1),  # ...while Delhi's 1-digit districts still work
     ("0LO1A8IZ34", None, None),  # needs 4+ fixes: too unreliable
     # --- BH series with look-alikes -----------------------------------------------
     ("228H1234AA", "22BH1234AA", 1),  # 8 -> B in the fixed "BH"

@@ -85,6 +85,9 @@ HSRP_PREFIX = "IND"
 # KA05MN0042 (3 fixes, normal shape) or KA05MNO042 (2 fixes, 3-letter series + 3-digit
 # number). Modern plates almost always have a 4-digit number, so the first one wins.
 _DISTRICT_PENALTY = {2: 0.0, 1: 0.25}
+# Outside Delhi (DL3CAB1234), districts are written with two digits (KA05, not KA5), so
+# a 1-digit district there is much less likely than an OCR slip.
+_ONE_DIGIT_DISTRICT_OUTSIDE_DELHI = 1.0
 _SERIES_PENALTY = {2: 0.0, 1: 0.5, 3: 0.5, 0: 1.0}
 _NUMBER_PENALTY = {4: 0.0, 3: 1.25, 2: 1.5, 1: 2.0}
 _BH_SUFFIX_PENALTY = {2: 0.0, 1: 0.25}
@@ -103,6 +106,7 @@ class _Layout:
     shape_penalty: float
     # Which positions hold series letters (for the rare-letter penalty).
     series_positions: frozenset[int]
+    district_digits: int = 2
 
 
 def _standard_layouts() -> Iterator[_Layout]:
@@ -115,6 +119,7 @@ def _standard_layouts() -> Iterator[_Layout]:
             + _SERIES_PENALTY[series]
             + _NUMBER_PENALTY[number],
             series_positions=frozenset(range(start, start + series)),
+            district_digits=district,
         )
 
 
@@ -177,6 +182,8 @@ def _readings_for(text: str, layout: _Layout) -> Iterator[PlateReading]:
             continue  # never "fix" a digit into a series letter RTOs don't issue
         rare = sum(1 for i in layout.series_positions if plate[i] in _RARE_SERIES_LETTERS)
         score = fixes + layout.shape_penalty + rare * _RARE_SERIES_PENALTY
+        if layout.district_digits == 1 and not plate.startswith("DL"):
+            score += _ONE_DIGIT_DISTRICT_OUTSIDE_DELHI - _DISTRICT_PENALTY[1]
         yield PlateReading(plate=plate, kind=layout.kind, fixes=fixes, score=score)
 
 

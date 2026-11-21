@@ -55,9 +55,9 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 
 | Metric | Value |
 |---|---|
-| Plate detection mAP@0.5 | TBD (measured in Phase 3) |
-| End-to-end plate accuracy | TBD (measured in Phase 3) |
-| ANPR latency on CPU | TBD (measured in Phase 3) |
+| Plate detection mAP@0.5 | TBD (pending the Phase 3 Colab training run) |
+| End-to-end plate accuracy | TBD (pending the Phase 3 Colab runs) |
+| Plate detector latency on CPU (YOLOv8n, 1280x720) | 65 ms FP32 · 32 ms INT8 static, 2-core build machine ([details](anpr/eval/results/detector_latency.md)) |
 | Gate-event ingestion throughput / p95 | TBD (measured in Phase 7) |
 | Backend test coverage | 97% (355 tests, Phase 2); enforced in CI from Phase 7 |
 
