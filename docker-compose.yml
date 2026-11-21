@@ -76,15 +76,22 @@ services:
       retries: 20
     restart: unless-stopped
 
-  # --- Application (placeholders in Phase 0) --------------------------------
+  # --- Application -----------------------------------------------------------
 
   backend:
     build: ./backend
+    environment:
+      # Inside the Compose network, services reach each other by service name.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gatesense}:${POSTGRES_PASSWORD:-gatesense_dev_password}@postgres:5432/${POSTGRES_DB:-gatesense}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-insecure-jwt-secret-change-me}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
       # Live-reload: code edits on your machine show up inside the container.
       - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
     depends_on:
       postgres:
         condition: service_healthy
