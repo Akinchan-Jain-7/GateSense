@@ -7,7 +7,7 @@ The agent updates this file at the start and end of every session.
 |---|---|---|---|
 | 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
 | 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
-| 2 | Gate event engine | ⚪ Not started | |
+| 2 | Gate event engine | 🟡 In progress | |
 | 3 | ANPR ML pipeline | ⚪ Not started | |
 | 4 | Visitors, approvals, guest passes, real time | ⚪ Not started | |
 | 5 | Escalation, notifications, scheduled jobs | ⚪ Not started | |
@@ -16,7 +16,7 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 2 (gate event engine).
+**Now building:** Phase 2 (gate event engine).
 
 ## Standing rules from the owner
 
@@ -34,6 +34,29 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 2: Gate event engine
+
+Branch: `phase-2-gate-event-engine`
+
+- [ ] OCR plate normaliser: Indian formats + state codes, position-aware look-alike fixes
+      (O/0, I/1, B/8, S/5, Z/2…), bounded edit-distance fuzzy matcher; ≥40 table-driven tests
+- [ ] Visit state machine as a pure module; illegal transitions raise; every change logged
+      in a new `visit_status_changes` table
+- [ ] Migration: `alerts` table, `visit_status_changes` table, new `gate_events` columns
+      (pairing, match distance, review fields)
+- [ ] Snapshot storage abstraction: local folder and S3-compatible (boto3), tested with moto
+- [ ] Idempotency (event hash) + debounce (Redis cooldown per plate per lane, by capture time)
+- [ ] `POST /api/v1/gate-events` (device key, multipart with snapshot) running the matching
+      pipeline: watchlist → resident vehicle → open visit → unknown; low confidence → review
+- [ ] Resident entry/exit pairing; visitor entry (APPROVED → INSIDE) and exit (→ EXITED)
+- [ ] Guard APIs: list events, snapshot download, review queue + correction (saved to
+      `plate_corrections`), alerts + acknowledge
+- [ ] Scripted-sequence integration test (visits, alerts, review items)
+- [ ] ADRs: visit state machine, debounce strategy, snapshot storage + model changes
+- [ ] `docs/database.md`, `docs/api.md`, `.env.example`, `docs/learn/phase-2.md`
+- [ ] Verified: full suite, ruff, mypy, live API run; CI green (compose job posts a real
+      event with a snapshot to S3 storage)
 
 ## Phase 1: Backend core, database, auth
 
