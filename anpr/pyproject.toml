@@ -46,7 +46,7 @@ source = ["gatesense_anpr", "eval"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["gatesense_anpr", "tests"]
+files = ["gatesense_anpr", "eval", "tests"]
 
 [[tool.mypy.overrides]]
 module = ["cv2.*", "onnxruntime.*", "easyocr.*", "paddleocr.*", "onnx.*"]
