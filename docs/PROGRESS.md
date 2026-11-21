@@ -9,14 +9,14 @@ The agent updates this file at the start and end of every session.
 | 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
 | 2 | Gate event engine | ✅ Done | [#4](https://github.com/Akinchan-Jain-7/GateSense/pull/4) |
 | 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
-| 4 | Visitors, approvals, guest passes, real time | ⚪ Not started | |
+| 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
 | 5 | Escalation, notifications, scheduled jobs | ⚪ Not started | |
 | 6 | Frontend (professional UI) | ⚪ Not started | |
 | 7 | Hardening, offline mode, performance | ⚪ Not started | |
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 4 (visitors, approvals, guest passes, real time).
+**Next up:** Phase 5 (escalation, notifications, scheduled jobs).
 
 **Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
 `02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
@@ -37,6 +37,41 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 4: Visitors, approvals, guest passes, real time
+
+Branch: `phase-4-visitors-approvals-realtime`
+
+- [x] Visitor registration (guard): visitor found or created by phone, visit
+      PENDING_APPROVAL, approval with the society's timeout; link the waiting car's read
+- [x] Resident decisions (web): row-locked, idempotent, other flats get 404; late answers
+      refused by a clock check; approval admits a linked waiting car (→ INSIDE)
+- [x] Timeout (Celery task with `eta`) → guard fallback `POST /visits/{id}/decision`;
+      flats with no residents go straight to the guard; manual enter/exit
+- [x] Guest passes: plate (auto-admitted by the entry camera) or code (HMAC, look-alike-free
+      alphabet), validity window, atomic usage limit, revoke, guard redeem
+- [x] Visit categories with admin-configurable limits + approval timeout (`society_settings`),
+      service visits with a resident-set duration; audited
+- [x] Telegram bot: one-time link codes, inline Approve/Deny, webhook secret check,
+      idempotent notification log; `docs/telegram.md`
+- [x] WebSocket `/api/v1/ws` over Redis pub/sub: console feed for staff, personal channel
+      for everyone; gate events, alerts, approvals, visits published
+- [x] Celery app + worker in Compose; jobs behind a `JobQueue` interface
+- [x] Integration test of the full unknown-visitor path (camera → registration → WebSocket +
+      Telegram → approve → admitted → exit camera), plus the timeout path
+- [x] Verified live: API + real Celery worker, 30 s timeout → job ran at `eta`, approval timed out
+- [x] ADR-0010, `docs/learn/phase-4.md`, api.md (endpoints + WebSocket events), database.md
+- [ ] **Owner (optional, any time):** create the Telegram bot with BotFather and put the token
+      in `.env` (steps in `docs/telegram.md`); the webhook is registered after deployment (Phase 8)
+
+### Notes and deviations
+
+- New table `society_settings`, columns `users.telegram_chat_id` and `visits.duration_minutes`.
+- New dependencies: `celery[redis]` (in the brief's stack) and `httpx` (Telegram client).
+- The WebSocket takes the access token in the query string (browsers can't send headers);
+  request logs record paths only.
+- A periodic sweep of overdue approvals (in case the broker loses a timeout job) arrives with
+  Celery Beat in Phase 5; until then the clock check on every answer covers it.
 
 ## Phase 3: ANPR ML pipeline
 
