@@ -13,13 +13,13 @@ Demo logins (password = DEMO_PASSWORD, default "GateSense@123"):
 """
 
 import argparse
-import asyncio
 import random
 from dataclasses import dataclass, field
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import event_loop
 from app.core.config import Settings, get_settings
 from app.core.security import generate_device_key, hash_password
 from app.db.base import Base
@@ -304,7 +304,7 @@ async def _main(reset: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed GateSense with demo data.")
     parser.add_argument("--reset", action="store_true", help="empty every table first")
-    asyncio.run(_main(parser.parse_args().reset))
+    event_loop.run(_main(parser.parse_args().reset))
 
 
 if __name__ == "__main__":

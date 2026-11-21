@@ -45,6 +45,17 @@ uv run uvicorn app.main:app --reload                    # http://localhost:8000/
 cd frontend && npm run dev                              # http://localhost:5173
 ```
 
+### Running the backend natively on Windows
+
+- Use `127.0.0.1` (not `localhost`) in `DATABASE_URL`, `REDIS_URL` and `S3_ENDPOINT_URL`, as
+  `.env.example` does. Windows tries `localhost` as IPv6 first, and the Docker ports listen
+  on IPv4 only, so connections can stall. If Postgres can't be reached, commands now fail
+  after 5 seconds instead of hanging.
+- Start the API with `--reload` (as above). psycopg's async mode can't use Windows' default
+  event loop; uvicorn switches to a compatible one when `--reload` is on. Without it, add
+  `--loop app.core.event_loop:selector_event_loop`, or the API stops with that hint. The
+  seed script and the tests pick the right loop themselves (`app/core/event_loop.py`).
+
 ### Docker Desktop troubleshooting (Windows)
 
 `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine` means the

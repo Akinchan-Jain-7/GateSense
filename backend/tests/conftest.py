@@ -16,8 +16,9 @@ which can also undo changes an API request made after it.
 Set TEST_DATABASE_URL to use another server; by default it's DATABASE_URL + "_test".
 """
 
+import asyncio
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 import httpx2
@@ -39,6 +40,15 @@ from app.services.storage import LocalSnapshotStorage
 from tests import factories
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def pytest_asyncio_loop_factories(
+    config: pytest.Config, item: pytest.Item
+) -> dict[str, Callable[[], asyncio.AbstractEventLoop]]:
+    """Every async test runs on a SelectorEventLoop: psycopg's async mode can't use the
+    ProactorEventLoop that Windows uses by default (see app/core/event_loop.py). On Linux
+    and macOS this is already the default, so CI exercises the same code path."""
+    return {"selector": asyncio.SelectorEventLoop}
 
 
 def _test_database_url() -> str:

@@ -13,6 +13,7 @@ from app.api import system
 from app.api.errors import register_error_handlers
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.event_loop import check_running_loop
 from app.core.logging import configure_logging
 from app.db.session import engine
 from app.services.storage import build_snapshot_storage
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Runs once at start-up (before `yield`) and once at shutdown (after it)."""
     settings = get_settings()
     configure_logging(settings.log_level)
+    check_running_loop()
     app.state.redis = Redis.from_url(settings.redis_url, socket_connect_timeout=2)
     app.state.snapshot_storage = build_snapshot_storage(settings)
     logger.info("api started", extra={"env": settings.app_env})
