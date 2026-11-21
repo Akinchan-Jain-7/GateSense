@@ -80,7 +80,7 @@ alternatives, and the consequences. Future you (or an interviewer) can see *why*
 |---|---|---|
 | Monorepo | Repo per service | One PR per change, one CI, one place for recruiters to look. |
 | uv for Python | pip + requirements.txt, Poetry | Real lockfile and very fast installs. |
-| RustFS for local S3 (proposed) | MinIO, community MinIO rebuilds | MinIO stopped publishing images; RustFS is maintained and S3-compatible. |
+| RustFS for local S3 | MinIO, community MinIO rebuilds | MinIO stopped publishing images; RustFS is maintained and S3-compatible. |
 | TypeScript 6.0 | TypeScript 7.0 | ESLint's TypeScript support doesn't handle 7.0 yet. |
 | ESLint | oxlint (new Vite default) | Brief asks for ESLint; type-aware rules catch more bugs. |
 | Ports bound to 127.0.0.1 | `0.0.0.0` (Docker's default) | Dev databases with default passwords shouldn't be reachable from your Wi-Fi. |

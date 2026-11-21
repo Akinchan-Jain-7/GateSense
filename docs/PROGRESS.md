@@ -5,7 +5,7 @@ The agent updates this file at the start and end of every session.
 
 | Phase | Name | Status | PR |
 |---|---|---|---|
-| 0 | Repo foundation | 🟡 In review | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
+| 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
 | 1 | Backend core, database, auth | ⚪ Not started | |
 | 2 | Gate event engine | ⚪ Not started | |
 | 3 | ANPR ML pipeline | ⚪ Not started | |
@@ -16,7 +16,7 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 1, once the owner merges PR #1.
+**Next up:** Phase 1 (backend core, database, auth).
 
 ## Standing rules from the owner
 
@@ -41,13 +41,14 @@ Branch: `phase-0-repo-foundation`
 - [x] `docker-compose.yml`: Postgres, Redis, Mailpit, S3-compatible storage, backend, frontend
 - [x] CI: backend + frontend lint/test, compose smoke test, gitleaks
 - [x] README skeleton, `CONTRIBUTING.md` (Conventional Commits), PR + issue templates
-- [x] ADR-0001 (monorepo and tech stack), ADR-0002 (dev object storage, **proposed**)
+- [x] ADR-0001 (monorepo and tech stack), ADR-0002 (dev object storage, accepted)
 - [x] `docs/learn/phase-0.md`
 - [x] Verified: CI green, including `docker compose up` on a GitHub runner
+- [x] Verified by the owner: Postgres, Redis, Mailpit and storage all healthy on Windows (Docker Desktop)
 
 ### Notes and deviations from the brief
 
-- **MinIO → RustFS (proposed, needs owner OK).** MinIO stopped publishing official Docker
+- **MinIO → RustFS (accepted by the owner).** MinIO stopped publishing official Docker
   images in October 2025, and the community edition is archived. RustFS is a drop-in
   S3-compatible replacement. See [ADR-0002](adr/0002-dev-object-storage.md).
 - **TypeScript 6.0, not 7.0.** TypeScript 7 (the native Go compiler) is out, but

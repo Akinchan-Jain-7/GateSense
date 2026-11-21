@@ -1,6 +1,6 @@
 # ADR-0002: Local S3-compatible storage (RustFS instead of MinIO)
 
-- **Status:** Proposed (waiting for the owner's OK)
+- **Status:** Accepted (owner approved, 2026-11-21)
 - **Date:** 2026-11-21
 
 ## Context
@@ -17,7 +17,7 @@ Since the brief was written, MinIO changed course:
 Using MinIO now means either building it from source ourselves or trusting an unofficial
 third-party image of an unmaintained server.
 
-## Decision (proposed)
+## Decision
 
 Use **[RustFS](https://github.com/rustfs/rustfs)** (`rustfs/rustfs:1.0.6`) as the local
 S3-compatible store. It is open source (Apache-2.0), actively maintained, has stable 1.0
