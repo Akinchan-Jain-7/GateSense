@@ -1,0 +1,50 @@
+# --- Secrets: only .env.example is ever committed ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+playwright-report/
+test-results/
+
+# --- ML: data and weights never go in git (see anpr/README.md) ---
+anpr/data/
+*.pt
+*.onnx
+*.engine
+*.weights
+runs/
+
+# --- Local runtime data ---
+*.sqlite
+*.sqlite3
+*.db
+storage/
+snapshots/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

@@ -1,0 +1,42 @@
+[project]
+name = "gatesense-backend"
+version = "0.1.0"
+description = "GateSense API: gate events, visits, approvals and escalation."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.165.0",
+  "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx2>=2.16.2",
+  "mypy>=2.4.1",
+  "pytest>=9.2.0",
+  "pytest-asyncio>=1.5.0",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.17.6",
+]
+
+[tool.uv]
+# The backend is an application, not a library we publish.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app", "tests"]
+plugins = ["pydantic.mypy"]

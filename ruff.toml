@@ -1,0 +1,27 @@
+# Shared ruff config for every Python package in the monorepo
+# (backend/, anpr/, simulator/, loadtests/, scripts/).
+target-version = "py312"
+line-length = 100
+# Tells the import sorter which top-level packages are "ours" (first-party).
+src = ["backend", "anpr", "simulator", "loadtests", "scripts"]
+
+[lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # import sorting
+  "B",   # bugbear: likely bugs
+  "UP",  # pyupgrade: modern syntax
+  "SIM", # simplifications
+  "N",   # naming
+  "S",   # bandit-style security checks
+]
+# Note: "E" already includes E722 (no bare `except:`), as the brief requires.
+
+[lint.per-file-ignores]
+# assert is how pytest works
+"**/tests/**" = ["S101"]
+
+[format]
+quote-style = "double"
