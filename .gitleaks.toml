@@ -1,0 +1,11 @@
+# Gitleaks config: the default rules plus a few narrow, documented exceptions.
+# Every exception must explain why it is NOT a secret.
+title = "GateSense gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Prose in CLAUDE.md ('bcrypt/argon2 password hashing') trips generic-api-key; it is not a secret."
+regexTarget = "match"
+regexes = ['''bcrypt/argon2''']

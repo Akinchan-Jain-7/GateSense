@@ -1,0 +1,7 @@
+# Keep line endings LF in the repo, even when cloned on Windows.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
