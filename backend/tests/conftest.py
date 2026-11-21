@@ -29,12 +29,13 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, c
 from sqlalchemy.pool import NullPool
 
 from alembic import command
-from app.api.system import get_redis
+from app.api.deps import get_redis, get_snapshot_storage
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.main import app
 from app.models import Flat, Society, User
 from app.models.enums import UserRole
+from app.services.storage import LocalSnapshotStorage
 from tests import factories
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -111,8 +112,14 @@ async def redis_client() -> AsyncIterator[Redis]:
 
 
 @pytest.fixture
+def snapshot_storage(tmp_path: Path) -> LocalSnapshotStorage:
+    """Snapshots go to a temporary folder that pytest deletes afterwards."""
+    return LocalSnapshotStorage(tmp_path / "snapshots")
+
+
+@pytest.fixture
 async def client(
-    connection: AsyncConnection, redis_client: Redis
+    connection: AsyncConnection, redis_client: Redis, snapshot_storage: LocalSnapshotStorage
 ) -> AsyncIterator[httpx2.AsyncClient]:
     async def override_get_db() -> AsyncIterator[AsyncSession]:
         session = _session(connection)
@@ -123,6 +130,7 @@ async def client(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = lambda: redis_client
+    app.dependency_overrides[get_snapshot_storage] = lambda: snapshot_storage
     transport = httpx2.ASGITransport(app=app)
     async with httpx2.AsyncClient(transport=transport, base_url="http://test") as http:
         yield http

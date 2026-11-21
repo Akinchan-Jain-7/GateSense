@@ -204,6 +204,12 @@ def read_ocr_plate(text: str) -> PlateReading | None:
     return min(readings, key=lambda r: (r.score, r.fixes, r.plate))
 
 
+def typed_reading(plate: str) -> PlateReading:
+    """A reading for a plate a person typed or confirmed (already normalised and valid)."""
+    kind: Literal["standard", "bh"] = "bh" if BH_PLATE.match(plate) else "standard"
+    return PlateReading(plate=plate, kind=kind, fixes=0, score=0.0)
+
+
 # --- Fuzzy matching -------------------------------------------------------------------
 
 

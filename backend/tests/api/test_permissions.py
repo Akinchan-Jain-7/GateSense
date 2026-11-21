@@ -54,6 +54,13 @@ ROUTES = [
     ("POST", "/api/v1/watchlist", {ADMIN}),
     ("PATCH", f"/api/v1/watchlist/{ANY_ID}", {ADMIN}),
     ("DELETE", f"/api/v1/watchlist/{ANY_ID}", {ADMIN}),
+    ("GET", "/api/v1/gate-events", {ADMIN, GUARD}),
+    ("GET", "/api/v1/gate-events/review-queue", {ADMIN, GUARD}),
+    ("GET", f"/api/v1/gate-events/{ANY_ID}", {ADMIN, GUARD}),
+    ("GET", f"/api/v1/gate-events/{ANY_ID}/snapshot", {ADMIN, GUARD}),
+    ("POST", f"/api/v1/gate-events/{ANY_ID}/review", {ADMIN, GUARD}),
+    ("GET", "/api/v1/alerts", {ADMIN, GUARD}),
+    ("POST", f"/api/v1/alerts/{ANY_ID}/acknowledge", {ADMIN, GUARD}),
 ]
 
 
@@ -94,6 +101,8 @@ def test_every_api_route_is_covered() -> None:
             continue
         if path == "/api/v1/devices/me":  # device-key auth, tested separately
             continue
+        if path == "/api/v1/gate-events":  # GET is staff; POST is device-key auth
+            operations = {m: op for m, op in operations.items() if m != "post"}
         normalized = path
         for name in (
             "flat_id",
@@ -103,6 +112,8 @@ def test_every_api_route_is_covered() -> None:
             "gate_id",
             "device_id",
             "entry_id",
+            "event_id",
+            "alert_id",
         ):
             normalized = normalized.replace("{" + name + "}", "{id}")
         actual |= {(method.upper(), normalized) for method in operations}

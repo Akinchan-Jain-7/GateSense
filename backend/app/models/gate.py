@@ -116,6 +116,10 @@ class GateEvent(UUIDPrimaryKey, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
 
+    @property
+    def has_snapshot(self) -> bool:
+        return self.snapshot_path is not None
+
 
 class PlateCorrection(UUIDPrimaryKey, Timestamps, Base):
     """A guard's fix of a low-confidence read. Kept as labelled data for retraining OCR."""

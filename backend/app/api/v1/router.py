@@ -2,7 +2,17 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, flats, gates, guards, residents, vehicles, watchlist
+from app.api.v1 import (
+    alerts,
+    auth,
+    flats,
+    gate_events,
+    gates,
+    guards,
+    residents,
+    vehicles,
+    watchlist,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -13,3 +23,5 @@ api_router.include_router(guards.router)
 api_router.include_router(gates.gates_router)
 api_router.include_router(gates.devices_router)
 api_router.include_router(watchlist.router)
+api_router.include_router(gate_events.router)
+api_router.include_router(alerts.router)
