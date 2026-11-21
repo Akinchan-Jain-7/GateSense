@@ -23,6 +23,11 @@ The agent updates this file at the start and end of every session.
 - Commits are authored by **Akinchan Jain**
   (`187171836+Akinchan-Jain-7@users.noreply.github.com`). Do **not** add Claude as an author
   or co-author, and add no "Generated with" footers to commits or PRs.
+- **Dev workflow:** supporting services (Postgres, Redis, Mailpit, storage) run in Docker;
+  backend and frontend run natively. Keep the CI `compose` job so the full Docker stack is
+  checked on every PR. Production images are built in Phase 8. Setup instructions in each
+  phase target this workflow (see `CONTRIBUTING.md`).
+- The owner's local clone lives at `C:\Users\akinc\projects\GateSense` (not in OneDrive).
 
 ## Phase 0: Repo foundation
 

@@ -19,11 +19,44 @@ pre-commit install
 
 Install uv: `pip install uv`, or see the uv docs for a standalone installer.
 
+## How we run things during development
+
+**Supporting services run in Docker; our own code runs directly on your machine.**
+
+- Postgres, Redis, Mailpit and object storage always run in Docker. That way there is one
+  command, the same versions everywhere, and it's easy to reset. Redis has no official Windows
+  build, so installing these natively would be harder.
+- The backend and frontend run natively (`uv run …`, `npm run dev`) for fast reloads and easy
+  debugging.
+- CI also builds and starts the *whole* stack in Docker on every PR, so container problems
+  show up early, not on deployment day. Production images are built in Phase 8.
+
+```bash
+# 1. Start the supporting services (leave this running)
+docker compose up postgres redis mailpit storage
+
+# 2. Backend, in a second terminal
+cd backend && uv run uvicorn app.main:app --reload      # http://localhost:8000/docs
+
+# 3. Frontend, in a third terminal
+cd frontend && npm run dev                              # http://localhost:5173
+```
+
+### Docker Desktop troubleshooting (Windows)
+
+`failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine` means the
+Docker engine isn't running. Start **Docker Desktop**, wait for "Engine running", and check
+with `docker info`. If Docker Desktop won't start:
+
+- Install WSL 2: run `wsl --install` in an admin PowerShell, then restart.
+- Check that virtualization is enabled: Task Manager → Performance → CPU → "Virtualization: Enabled".
+
 ## Everyday commands
 
 | What | Command |
 |---|---|
-| Start everything | `docker compose up --build` |
+| Start supporting services | `docker compose up postgres redis mailpit storage` |
+| Start everything in Docker | `docker compose up --build` |
 | Backend tests | `cd backend && uv run pytest` |
 | Backend lint / types | `cd backend && uv run ruff check . && uv run mypy` |
 | Frontend tests | `cd frontend && npm test` |
