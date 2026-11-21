@@ -49,28 +49,97 @@ FLOORS = range(1, 6)
 FLATS_PER_FLOOR = 2
 
 FIRST_NAMES_F = [
-    "Priya", "Ananya", "Kavya", "Neha", "Pooja", "Shreya", "Ishita", "Meera", "Aditi",
-    "Riya", "Sneha", "Divya", "Nandini", "Tanvi", "Sakshi", "Aarti", "Swati", "Pallavi",
-]  # fmt: skip
+    "Priya",
+    "Ananya",
+    "Kavya",
+    "Neha",
+    "Pooja",
+    "Shreya",
+    "Ishita",
+    "Meera",
+    "Aditi",
+    "Riya",
+    "Sneha",
+    "Divya",
+    "Nandini",
+    "Tanvi",
+    "Sakshi",
+    "Aarti",
+    "Swati",
+    "Pallavi",
+]
 FIRST_NAMES_M = [
-    "Rahul", "Amit", "Vikram", "Arjun", "Rohan", "Karan", "Siddharth", "Aditya", "Nikhil",
-    "Varun", "Manish", "Deepak", "Saurabh", "Gaurav", "Harsh", "Kunal", "Yash", "Abhishek",
-]  # fmt: skip
+    "Rahul",
+    "Amit",
+    "Vikram",
+    "Arjun",
+    "Rohan",
+    "Karan",
+    "Siddharth",
+    "Aditya",
+    "Nikhil",
+    "Varun",
+    "Manish",
+    "Deepak",
+    "Saurabh",
+    "Gaurav",
+    "Harsh",
+    "Kunal",
+    "Yash",
+    "Abhishek",
+]
 SURNAMES = [
-    "Sharma", "Verma", "Gupta", "Agarwal", "Mehta", "Iyer", "Nair", "Reddy", "Singh",
-    "Chauhan", "Joshi", "Kapoor", "Malhotra", "Bansal", "Saxena", "Mishra", "Pandey",
-    "Bhatia", "Chopra", "Kulkarni", "Banerjee", "Das", "Khanna", "Tiwari", "Rao",
-]  # fmt: skip
+    "Sharma",
+    "Verma",
+    "Gupta",
+    "Agarwal",
+    "Mehta",
+    "Iyer",
+    "Nair",
+    "Reddy",
+    "Singh",
+    "Chauhan",
+    "Joshi",
+    "Kapoor",
+    "Malhotra",
+    "Bansal",
+    "Saxena",
+    "Mishra",
+    "Pandey",
+    "Bhatia",
+    "Chopra",
+    "Kulkarni",
+    "Banerjee",
+    "Das",
+    "Khanna",
+    "Tiwari",
+    "Rao",
+]
 
 CARS = [
-    "Maruti Swift", "Maruti Baleno", "Hyundai Creta", "Hyundai i20", "Tata Nexon",
-    "Tata Punch EV", "Mahindra XUV700", "Mahindra Thar", "Honda City", "Kia Seltos",
-    "Toyota Innova Crysta", "MG ZS EV", "Skoda Kushaq",
-]  # fmt: skip
+    "Maruti Swift",
+    "Maruti Baleno",
+    "Hyundai Creta",
+    "Hyundai i20",
+    "Tata Nexon",
+    "Tata Punch EV",
+    "Mahindra XUV700",
+    "Mahindra Thar",
+    "Honda City",
+    "Kia Seltos",
+    "Toyota Innova Crysta",
+    "MG ZS EV",
+    "Skoda Kushaq",
+]
 TWO_WHEELERS = [
-    "Honda Activa 6G", "TVS Jupiter", "Royal Enfield Classic 350", "Bajaj Pulsar NS200",
-    "Ather 450X", "Hero Splendor Plus", "Ola S1 Pro",
-]  # fmt: skip
+    "Honda Activa 6G",
+    "TVS Jupiter",
+    "Royal Enfield Classic 350",
+    "Bajaj Pulsar NS200",
+    "Ather 450X",
+    "Hero Splendor Plus",
+    "Ola S1 Pro",
+]
 COLOURS = ["White", "Silver", "Grey", "Black", "Red", "Blue", "Brown"]
 
 GUARDS = [
@@ -108,8 +177,9 @@ def _plate(rng: random.Random, vehicle_type: VehicleType) -> str:
     letters = "ABCDEFGHJKLMNPRSTUVWXYZ"  # I, O and Q are not used in plate series
     series = "".join(rng.choices(letters, k=2))
     number = f"{rng.randrange(1, 10000):04d}"
-    style = rng.choices(["noida", "ghaziabad", "delhi", "haryana", "other", "bh"],
-                        weights=[40, 15, 25, 10, 5, 5])[0]  # fmt: skip
+    style = rng.choices(
+        ["noida", "ghaziabad", "delhi", "haryana", "other", "bh"], weights=[40, 15, 25, 10, 5, 5]
+    )[0]
     if style == "noida":
         return f"UP16 {series} {number}"
     if style == "ghaziabad":

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, SmallInteger, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
@@ -32,3 +32,17 @@ class Flat(UUIDPrimaryKey, Timestamps, Base):
     def label(self) -> str:
         """Human label used everywhere in the UI, e.g. "B-402"."""
         return f"{self.block}-{self.number}"
+
+
+class SocietySettings(Timestamps, Base):
+    """Settings the society's admin can change (Phase 4: visit time limits and the approval
+    timeout). One row per society; when there is none, the defaults from app config apply."""
+
+    __tablename__ = "society_settings"
+
+    society_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("societies.id"), primary_key=True)
+    guest_minutes: Mapped[int] = mapped_column(Integer)
+    delivery_minutes: Mapped[int] = mapped_column(Integer)
+    cab_minutes: Mapped[int] = mapped_column(Integer)
+    service_minutes: Mapped[int] = mapped_column(Integer)
+    approval_timeout_seconds: Mapped[int] = mapped_column(Integer)

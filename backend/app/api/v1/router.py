@@ -4,13 +4,19 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     alerts,
+    approvals,
     auth,
     flats,
     gate_events,
     gates,
     guards,
+    guest_passes,
+    realtime,
     residents,
+    settings,
+    telegram,
     vehicles,
+    visits,
     watchlist,
 )
 
@@ -25,3 +31,9 @@ api_router.include_router(gates.devices_router)
 api_router.include_router(watchlist.router)
 api_router.include_router(gate_events.router)
 api_router.include_router(alerts.router)
+api_router.include_router(visits.router)
+api_router.include_router(approvals.router)
+api_router.include_router(guest_passes.router)
+api_router.include_router(settings.router)
+api_router.include_router(telegram.router)
+api_router.include_router(realtime.router)

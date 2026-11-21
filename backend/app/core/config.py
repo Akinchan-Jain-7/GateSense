@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/app/core/config.py -> parents[3] is the repository root, where `.env` lives.
@@ -62,6 +62,17 @@ class Settings(BaseSettings):
     visit_limit_cab_minutes: int = Field(default=10, ge=1)
     # Service visits normally get a resident-set duration; this is the fallback.
     visit_limit_service_minutes: int = Field(default=120, ge=1)
+
+    # --- Approvals ---
+    # How long residents get to answer before the guard decides (default 3 minutes).
+    approval_timeout_seconds: int = Field(default=180, ge=10)
+
+    # --- Telegram bot (optional; leave the token empty to turn the bot off) ---
+    telegram_bot_token: SecretStr | None = None
+    telegram_bot_username: str | None = None  # e.g. GateSenseDemoBot, for the deep link
+    # Telegram sends it back in a header with every webhook call; we reject calls without it.
+    telegram_webhook_secret: SecretStr | None = None
+    telegram_api_url: str = "https://api.telegram.org"
 
     # --- Plate snapshots ---
     # "local": files in snapshot_local_dir. "s3": any S3-compatible store (RustFS in dev).

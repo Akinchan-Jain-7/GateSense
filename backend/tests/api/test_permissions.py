@@ -61,6 +61,22 @@ ROUTES = [
     ("POST", f"/api/v1/gate-events/{ANY_ID}/review", {ADMIN, GUARD}),
     ("GET", "/api/v1/alerts", {ADMIN, GUARD}),
     ("POST", f"/api/v1/alerts/{ANY_ID}/acknowledge", {ADMIN, GUARD}),
+    ("POST", "/api/v1/visits", {ADMIN, GUARD}),
+    ("GET", "/api/v1/visits", {ADMIN, GUARD, RESIDENT}),
+    ("GET", f"/api/v1/visits/{ANY_ID}", {ADMIN, GUARD, RESIDENT}),
+    ("POST", f"/api/v1/visits/{ANY_ID}/decision", {ADMIN, GUARD}),
+    ("POST", f"/api/v1/visits/{ANY_ID}/enter", {ADMIN, GUARD}),
+    ("POST", f"/api/v1/visits/{ANY_ID}/exit", {ADMIN, GUARD}),
+    ("GET", "/api/v1/approvals", {ADMIN, GUARD, RESIDENT}),
+    ("POST", f"/api/v1/approvals/{ANY_ID}/decision", {RESIDENT}),
+    ("POST", "/api/v1/guest-passes", {RESIDENT}),
+    ("GET", "/api/v1/guest-passes", {ADMIN, GUARD, RESIDENT}),
+    ("POST", f"/api/v1/guest-passes/{ANY_ID}/revoke", {RESIDENT}),
+    ("POST", "/api/v1/guest-passes/redeem", {ADMIN, GUARD}),
+    ("GET", "/api/v1/settings/visits", {ADMIN, GUARD}),
+    ("PATCH", "/api/v1/settings/visits", {ADMIN}),
+    ("POST", "/api/v1/telegram/link-code", {RESIDENT}),
+    ("DELETE", "/api/v1/telegram/link", {RESIDENT}),
 ]
 
 
@@ -86,7 +102,8 @@ async def test_role_access(
             assert response.status_code not in (401, 403), (role, response.text)
         else:
             assert response.status_code == 403, (role, response.text)
-            assert "admin" in response.json()["detail"]
+            detail = response.json()["detail"]
+            assert all(name in detail for name in allowed), detail
 
 
 def test_every_api_route_is_covered() -> None:
@@ -114,6 +131,9 @@ def test_every_api_route_is_covered() -> None:
             "entry_id",
             "event_id",
             "alert_id",
+            "visit_id",
+            "approval_id",
+            "pass_id",
         ):
             normalized = normalized.replace("{" + name + "}", "{id}")
         actual |= {(method.upper(), normalized) for method in operations}

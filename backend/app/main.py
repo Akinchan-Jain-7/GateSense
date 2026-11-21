@@ -17,6 +17,8 @@ from app.core.event_loop import check_running_loop
 from app.core.logging import configure_logging
 from app.db.session import engine
 from app.services.storage import build_snapshot_storage
+from app.services.telegram import build_bot
+from app.workers.jobs import CeleryJobQueue
 
 logger = logging.getLogger("gatesense.api")
 
@@ -29,9 +31,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     check_running_loop()
     app.state.redis = Redis.from_url(settings.redis_url, socket_connect_timeout=2)
     app.state.snapshot_storage = build_snapshot_storage(settings)
+    app.state.jobs = CeleryJobQueue()
+    app.state.telegram_bot = build_bot(settings)
     logger.info("api started", extra={"env": settings.app_env})
     yield
     await app.state.redis.aclose()
+    if app.state.telegram_bot is not None:
+        await app.state.telegram_bot.aclose()
     await engine.dispose()
 
 

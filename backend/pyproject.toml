@@ -9,8 +9,10 @@ dependencies = [
   "alembic>=1.20.1",
   "argon2-cffi>=25.1.0",
   "boto3>=1.44.9",
+  "celery[redis]>=5.7.0",
   "email-validator>=2.4.0",
   "fastapi>=0.165.0",
+  "httpx>=0.28.1",
   "psycopg[binary]>=3.3.9",
   "pydantic-settings>=2.16.3",
   "pyjwt>=2.15.1",
@@ -61,3 +63,8 @@ python_version = "3.12"
 strict = true
 files = ["app", "tests"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Celery ships without type hints.
+module = ["celery.*", "kombu.*"]
+ignore_missing_imports = true

@@ -30,11 +30,50 @@ MAX_PLATE_LENGTH = 12
 
 # Registration codes of every state and union territory, including older codes still on
 # the road (OR → OD for Odisha, UA → UK for Uttarakhand, TS → TG for Telangana, DN/DD).
-STATE_CODES = frozenset({
-    "AN", "AP", "AR", "AS", "BR", "CG", "CH", "DD", "DL", "DN", "GA", "GJ", "HP", "HR",
-    "JH", "JK", "KA", "KL", "LA", "LD", "MH", "ML", "MN", "MP", "MZ", "NL", "OD", "OR",
-    "PB", "PY", "RJ", "SK", "TG", "TN", "TR", "TS", "UA", "UK", "UP", "WB",
-})  # fmt: skip
+STATE_CODES = frozenset(
+    {
+        "AN",
+        "AP",
+        "AR",
+        "AS",
+        "BR",
+        "CG",
+        "CH",
+        "DD",
+        "DL",
+        "DN",
+        "GA",
+        "GJ",
+        "HP",
+        "HR",
+        "JH",
+        "JK",
+        "KA",
+        "KL",
+        "LA",
+        "LD",
+        "MH",
+        "ML",
+        "MN",
+        "MP",
+        "MZ",
+        "NL",
+        "OD",
+        "OR",
+        "PB",
+        "PY",
+        "RJ",
+        "SK",
+        "TG",
+        "TN",
+        "TR",
+        "TS",
+        "UA",
+        "UK",
+        "UP",
+        "WB",
+    }
+)
 
 
 def clean_plate(text: str) -> str:
@@ -66,13 +105,28 @@ def normalize_typed_plate(text: str) -> str:
 # What a wrongly-typed character most likely was. A letter in a digit slot is mapped with
 # TO_DIGIT; a digit in a letter slot with TO_LETTER (some digits have two candidates).
 TO_DIGIT = {
-    "O": "0", "D": "0", "Q": "0",
-    "I": "1", "L": "1",
-    "Z": "2", "A": "4", "S": "5", "G": "6", "T": "7", "B": "8",
-}  # fmt: skip
+    "O": "0",
+    "D": "0",
+    "Q": "0",
+    "I": "1",
+    "L": "1",
+    "Z": "2",
+    "A": "4",
+    "S": "5",
+    "G": "6",
+    "T": "7",
+    "B": "8",
+}
 TO_LETTER = {
-    "0": "OD", "1": "I", "2": "Z", "4": "A", "5": "S", "6": "G", "7": "T", "8": "B",
-}  # fmt: skip
+    "0": "OD",
+    "1": "I",
+    "2": "Z",
+    "4": "A",
+    "5": "S",
+    "6": "G",
+    "7": "T",
+    "8": "B",
+}
 
 # More look-alike fixes than this and the read is too unreliable to trust.
 MAX_FIXES = 3

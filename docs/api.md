@@ -60,6 +60,20 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `POST /gate-events/{id}/review` | ✅ | ✅ | ❌ | `{"action": "correct", "plate": "…"}` re-runs matching; `{"action": "dismiss"}`. Once per event (else 409) |
 | `GET /alerts` | ✅ | ✅ | ❌ | Watchlist alerts, newest first. Filter: `acknowledged` |
 | `POST /alerts/{id}/acknowledge` | ✅ | ✅ | ❌ | Safe to repeat; keeps the first guard and time |
+| `POST /visits` | ✅ | ✅ | ❌ | Register a visitor → approval request (`gate_event_id` links the waiting car) |
+| `GET /visits`, `GET /visits/{id}` | ✅ | ✅ | own flats | Filters: `status`, `inside`, `flat_id`, `q`. Phones are masked |
+| `POST /visits/{id}/decision` | ✅ | ✅ | ❌ | Guard fallback after the timeout (409 while residents can still answer) |
+| `POST /visits/{id}/enter`, `/exit` | ✅ | ✅ | ❌ | Manual entry / exit |
+| `GET /approvals` | ✅ | ✅ | own flats | `status=pending` for the resident inbox |
+| `POST /approvals/{id}/decision` | ❌ | ❌ | ✅ | `{"decision": "approve" \| "deny"}`; same answer twice = 200, different = 409 |
+| `POST /guest-passes` | ❌ | ❌ | ✅ | Plate and/or one-time code (returned once) |
+| `GET /guest-passes` | ✅ | ✅ | own flats | `active=true` = usable now |
+| `POST /guest-passes/{id}/revoke` | ❌ | ❌ | ✅ | |
+| `POST /guest-passes/redeem` | ✅ | ✅ | ❌ | Guard types a guest's code → visit inside |
+| `GET /settings/visits` | ✅ | ✅ | ❌ | Time limits per category, approval timeout |
+| `PATCH /settings/visits` | ✅ | ❌ | ❌ | Audited |
+| `POST /telegram/link-code`, `DELETE /telegram/link` | ❌ | ❌ | ✅ | See [telegram.md](telegram.md) |
+| `WS /ws?token=<access token>` | ✅ | ✅ | ✅ | Live events (below) |
 | `GET /health` | – | – | – | Public liveness probe |
 | `GET /ready` | – | – | – | Public readiness probe (checks Postgres and Redis) |
 
@@ -97,3 +111,19 @@ The response says what happened:
 
 The rules behind it (matching order, visits, resident pairing, debounce) are explained in
 [docs/learn/phase-2.md](learn/phase-2.md) and ADRs 0005–0008.
+
+## Live updates (WebSocket)
+
+Connect to `ws://localhost:8000/api/v1/ws?token=<access token>`. A bad token closes the
+socket with code **4401**. The first message is `{"type": "hello", "data": {"role": …}}`;
+send `ping` to get `{"type": "pong"}`. Every event looks like
+`{"type": "...", "at": "<ISO time>", "data": {...}}`:
+
+| Type | Sent to | `data` |
+|---|---|---|
+| `gate_event.created` | guards, admins | the gate event |
+| `alert.created` | guards, admins | the alert (watchlist) |
+| `approval.requested` | guards, admins, the flat's residents | the approval with its visit |
+| `approval.decided` / `approval.timed_out` | same | the approval with its visit |
+| `visit.updated` | guards, admins, the flat's residents | the visit |
+

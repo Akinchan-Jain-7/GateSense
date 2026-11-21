@@ -35,6 +35,7 @@ erDiagram
   societies ||--o{ watchlist : has
   societies ||--o{ visitors : has
   societies ||--o{ audit_logs : has
+  societies ||--o| society_settings : configures
 
   users ||--o{ residents : "lives in (as)"
   flats ||--o{ residents : "is home of"
@@ -71,6 +72,14 @@ erDiagram
     int floor
     int parking_slots
   }
+  society_settings {
+    uuid society_id PK,FK
+    int guest_minutes
+    int delivery_minutes
+    int cab_minutes
+    int service_minutes
+    int approval_timeout_seconds
+  }
   users {
     uuid id PK
     uuid society_id FK
@@ -78,6 +87,7 @@ erDiagram
     string full_name
     string phone
     string role "admin | guard | resident"
+    bigint telegram_chat_id UK
     string password_hash "argon2id"
     bool is_active
   }
@@ -172,6 +182,7 @@ erDiagram
     timestamptz entered_at
     timestamptz expected_exit_at
     timestamptz exited_at
+    int duration_minutes
   }
   visit_status_changes {
     uuid id PK
@@ -270,10 +281,15 @@ marked *(Phase N)* have no API yet.
   `pending_approval → approved → inside → overstayed → escalated → exited` (+ `denied`,
   `expired`). Links to the entry and exit gate events. Only `services/visits.py` changes
   `status`, using the rules in `services/visit_state.py`.
+- **`society_settings`**: one row per society with the visit time limits and approval
+  timeout an admin set; no row = the defaults from config.
+- **`users.telegram_chat_id`** (unique) links a resident's Telegram chat; **`visits.duration_minutes`**
+  is a resident-set duration (service visits) that beats the category limit.
 - **`visit_status_changes`**: the history of every visit, one row per status change (from,
   to, trigger, when, and the user or gate event that caused it). Written in the same
   transaction as the change; never updated.
-- **`approvals`**: a request to the flat to approve or deny a visit, with a 3-minute expiry.
+- **`approvals`**: a request to the flat to approve or deny a visit, expiring after the
+  society's approval timeout (3 minutes by default); then the guard decides.
 - **`guest_passes`**: created by residents ahead of time, matched by plate or by a one-time
   code (only its hash is stored). Two `CHECK` constraints: a pass needs a plate or a code,
   and `use_count` can never exceed `max_uses`.
