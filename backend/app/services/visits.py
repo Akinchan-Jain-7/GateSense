@@ -1,4 +1,4 @@
-"""Saving visit status changes.
+"""Creating visits and saving their status changes.
 
 The rules are in `visit_state.py` (pure). This module is the only place that changes a
 visit's status in the database: it applies the rule and writes a `visit_status_changes`
@@ -12,21 +12,72 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.models import Visit, VisitStatusChange
-from app.models.enums import VisitCategory, VisitTrigger
-from app.services.visit_state import StatusChange, apply_transition
+from app.models.enums import VisitCategory, VisitStatus, VisitTrigger
+from app.services.errors import InvalidInputError
+from app.services.society_settings import visit_limits
+from app.services.visit_state import INITIAL_STATUSES, StatusChange, apply_transition
 
 
-def time_limit(settings: Settings, category: VisitCategory) -> timedelta:
-    minutes = {
-        VisitCategory.GUEST: settings.visit_limit_guest_minutes,
-        VisitCategory.DELIVERY: settings.visit_limit_delivery_minutes,
-        VisitCategory.CAB: settings.visit_limit_cab_minutes,
-        VisitCategory.SERVICE: settings.visit_limit_service_minutes,
-    }[category]
-    return timedelta(minutes=minutes)
+async def time_limit(db: AsyncSession, settings: Settings, visit: Visit) -> timedelta:
+    """An agreed duration (e.g. a resident-set service visit) beats the category limit."""
+    if visit.duration_minutes:
+        return timedelta(minutes=visit.duration_minutes)
+    limits = await visit_limits(db, settings, visit.society_id)
+    return limits.for_category(visit.category)
 
 
-def transition_visit(
+async def start_visit(
+    db: AsyncSession,
+    *,
+    society_id: uuid.UUID,
+    flat_id: uuid.UUID,
+    category: VisitCategory,
+    status: VisitStatus,
+    at: datetime,
+    note: str,
+    plate: str | None = None,
+    visitor_id: uuid.UUID | None = None,
+    guest_pass_id: uuid.UUID | None = None,
+    purpose: str | None = None,
+    duration_minutes: int | None = None,
+    registered_by_id: uuid.UUID | None = None,
+    approved_by_id: uuid.UUID | None = None,
+) -> Visit:
+    """Create a visit in its first status, with the first history row. Flushes, the caller
+    commits."""
+    if status not in INITIAL_STATUSES:
+        raise InvalidInputError(f"A visit can't start as '{status.value}'")
+    visit = Visit(
+        id=uuid.uuid4(),
+        society_id=society_id,
+        flat_id=flat_id,
+        category=category,
+        status=status,
+        plate_normalized=plate,
+        visitor_id=visitor_id,
+        guest_pass_id=guest_pass_id,
+        purpose=purpose,
+        duration_minutes=duration_minutes,
+        registered_by_id=registered_by_id,
+        approved_by_id=approved_by_id,
+    )
+    db.add(visit)
+    await db.flush()  # the history row points at the visit
+    db.add(
+        VisitStatusChange(
+            visit_id=visit.id,
+            from_status=None,
+            to_status=status,
+            trigger=None,
+            changed_at=at,
+            actor_id=registered_by_id,
+            note=note,
+        )
+    )
+    return visit
+
+
+async def transition_visit(
     db: AsyncSession,
     settings: Settings,
     visit: Visit,
@@ -41,13 +92,14 @@ def transition_visit(
 
     Raises IllegalTransitionError (→ 409) if the move isn't allowed.
     """
-    change = apply_transition(
-        visit, trigger, at=at, time_limit=time_limit(settings, visit.category)
-    )
+    limit = await time_limit(db, settings, visit)
+    change = apply_transition(visit, trigger, at=at, time_limit=limit)
     if trigger is VisitTrigger.ENTER and gate_event_id is not None:
         visit.entry_event_id = gate_event_id
     elif trigger is VisitTrigger.EXIT and gate_event_id is not None:
         visit.exit_event_id = gate_event_id
+    elif trigger is VisitTrigger.APPROVE and actor_id is not None:
+        visit.approved_by_id = actor_id
     db.add(
         VisitStatusChange(
             visit_id=visit.id,

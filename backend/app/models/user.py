@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
@@ -24,6 +24,8 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     # Users are deactivated, never deleted, so history (who approved what) stays intact.
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when a resident links the Telegram bot (Phase 4); approvals are sent there too.
+    telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
 
 
 class Resident(UUIDPrimaryKey, Timestamps, Base):

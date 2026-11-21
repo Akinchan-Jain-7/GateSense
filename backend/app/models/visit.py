@@ -10,7 +10,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
 from app.models.enums import (
@@ -23,6 +23,7 @@ from app.models.enums import (
     VisitTrigger,
     str_enum,
 )
+from app.models.society import Flat
 
 
 class Visitor(UUIDPrimaryKey, Timestamps, Base):
@@ -71,7 +72,13 @@ class Visit(UUIDPrimaryKey, Timestamps, Base):
     )
     entered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expected_exit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A duration agreed up front (resident-set service visits); otherwise the category limit.
+    duration_minutes: Mapped[int | None] = mapped_column(Integer)
     exited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # lazy="raise": load explicitly (selectinload) so async code never lazy-loads by accident.
+    visitor: Mapped["Visitor | None"] = relationship(lazy="raise")
+    flat: Mapped[Flat] = relationship(lazy="raise")
 
 
 class VisitStatusChange(UUIDPrimaryKey, Base):
@@ -119,6 +126,8 @@ class Approval(UUIDPrimaryKey, Timestamps, Base):
         str_enum(ApprovalChannel, "approval_channel")
     )
 
+    visit: Mapped[Visit] = relationship(lazy="raise")
+
 
 class GuestPass(UUIDPrimaryKey, Timestamps, Base):
     """Created by a resident ahead of time; matched by plate or by a one-time code."""
@@ -147,6 +156,10 @@ class GuestPass(UUIDPrimaryKey, Timestamps, Base):
     max_uses: Mapped[int] = mapped_column(Integer, default=1)
     use_count: Mapped[int] = mapped_column(Integer, default=0)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def has_code(self) -> bool:
+        return self.code_hash is not None
 
 
 class EscalationTask(UUIDPrimaryKey, Timestamps, Base):

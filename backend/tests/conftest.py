@@ -18,7 +18,9 @@ Set TEST_DATABASE_URL to use another server; by default it's DATABASE_URL + "_te
 
 import asyncio
 import os
+import uuid
 from collections.abc import AsyncIterator, Callable
+from datetime import datetime
 from pathlib import Path
 
 import httpx2
@@ -30,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, c
 from sqlalchemy.pool import NullPool
 
 from alembic import command
-from app.api.deps import get_redis, get_snapshot_storage
+from app.api.deps import get_job_queue, get_redis, get_snapshot_storage, get_telegram_bot
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.main import app
@@ -121,6 +123,25 @@ async def redis_client() -> AsyncIterator[Redis]:
     await client.aclose()
 
 
+class RecordingJobs:
+    """Stands in for Celery: records what the API scheduled instead of queueing it."""
+
+    def __init__(self) -> None:
+        self.timeouts: list[tuple[uuid.UUID, datetime]] = []
+        self.notifications: list[uuid.UUID] = []
+
+    def approval_timeout(self, approval_id: uuid.UUID, at: datetime) -> None:
+        self.timeouts.append((approval_id, at))
+
+    def notify_approval(self, approval_id: uuid.UUID) -> None:
+        self.notifications.append(approval_id)
+
+
+@pytest.fixture
+def jobs() -> RecordingJobs:
+    return RecordingJobs()
+
+
 @pytest.fixture
 def snapshot_storage(tmp_path: Path) -> LocalSnapshotStorage:
     """Snapshots go to a temporary folder that pytest deletes afterwards."""
@@ -129,7 +150,10 @@ def snapshot_storage(tmp_path: Path) -> LocalSnapshotStorage:
 
 @pytest.fixture
 async def client(
-    connection: AsyncConnection, redis_client: Redis, snapshot_storage: LocalSnapshotStorage
+    connection: AsyncConnection,
+    redis_client: Redis,
+    snapshot_storage: LocalSnapshotStorage,
+    jobs: RecordingJobs,
 ) -> AsyncIterator[httpx2.AsyncClient]:
     async def override_get_db() -> AsyncIterator[AsyncSession]:
         session = _session(connection)
@@ -141,6 +165,8 @@ async def client(
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis] = lambda: redis_client
     app.dependency_overrides[get_snapshot_storage] = lambda: snapshot_storage
+    app.dependency_overrides[get_job_queue] = lambda: jobs
+    app.dependency_overrides.setdefault(get_telegram_bot, lambda: None)
     transport = httpx2.ASGITransport(app=app)
     async with httpx2.AsyncClient(transport=transport, base_url="http://test") as http:
         yield http

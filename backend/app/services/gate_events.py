@@ -10,6 +10,7 @@
            unreadable/unsure  -> guard review queue, nothing automatic
            resident vehicle   -> logged; an EXIT closes the vehicle's open ENTRY
            expected visitor   -> visit moves APPROVED -> INSIDE, or INSIDE -> EXITED
+           guest pass (entry) -> a new approved visit, admitted at once, one use counted
            anything else      -> UNKNOWN (the guard registers the visitor, Phase 4)
 
 A guard's correction of a review item (`review_event`) runs step 5 again with the
@@ -34,6 +35,7 @@ from app.models import (
     Alert,
     Device,
     GateEvent,
+    GuestPass,
     PlateCorrection,
     User,
     Vehicle,
@@ -49,7 +51,7 @@ from app.models.enums import (
     VisitStatus,
     VisitTrigger,
 )
-from app.services import debounce
+from app.services import debounce, guest_passes, realtime
 from app.services.db_helpers import get_in_society
 from app.services.errors import ConflictError, InvalidInputError
 from app.services.pagination import PageRequest, PageResult, paginate
@@ -176,6 +178,7 @@ async def ingest_read(
     # 5. Decide what it is.
     await apply_match(db, settings, event, reading, trusted=False)
     await db.commit()
+    await _publish(db, redis, event)
     logger.info(
         "gate event",
         extra={
@@ -187,6 +190,21 @@ async def ingest_read(
         },
     )
     return IngestResult(status="created", event=event)
+
+
+async def _publish(db: AsyncSession, redis: Redis, event: GateEvent) -> None:
+    """Tell the guard console (and, for visits, the flat's residents) what just happened."""
+    from app.schemas.gate_event import AlertRead, GateEventRead
+    from app.services import visitors
+
+    console = [realtime.console_channel(event.society_id)]
+    read = GateEventRead.model_validate(event)
+    await realtime.publish(redis, console, "gate_event.created", read)
+    for alert in await db.scalars(select(Alert).where(Alert.gate_event_id == event.id)):
+        await realtime.publish(redis, console, "alert.created", AlertRead.model_validate(alert))
+    if event.visit_id is not None:
+        visit = await visitors.load_visit(db, event.visit_id)
+        await visitors.publish_visit(redis, db, visit, "visit.updated")
 
 
 # --- Matching ------------------------------------------------------------------------
@@ -249,13 +267,25 @@ async def apply_match(
         event.vehicle_id = match.id
         if event.direction is LaneDirection.EXIT:
             await _close_resident_entry(db, event, match)
+    elif isinstance(match, GuestPass):
+        event.match_result = MatchResult.GUEST_PASS
+        visit = await guest_passes.admit_with_pass(
+            db,
+            settings,
+            match,
+            at=event.captured_at,
+            plate=event.plate_normalized,
+            gate_event_id=event.id,
+            actor_id=actor_id,
+        )
+        event.visit_id = visit.id
     else:
         event.match_result = MatchResult.VISITOR
         event.visit_id = match.id
         trigger = (
             VisitTrigger.ENTER if event.direction is LaneDirection.ENTRY else VisitTrigger.EXIT
         )
-        transition_visit(
+        await transition_visit(
             db,
             settings,
             match,
@@ -322,8 +352,9 @@ def _length_near(
 
 async def _known_plates(
     db: AsyncSession, settings: Settings, event: GateEvent
-) -> dict[str, Vehicle | Visit]:
-    """Plates this read could belong to: resident vehicles, plus visits expecting this lane.
+) -> dict[str, Vehicle | Visit | GuestPass]:
+    """Plates this read could belong to: resident vehicles, visits expecting this lane, and
+    (at the entry lane) guest passes valid at the capture time.
 
     At the entry lane, approved visits waiting to arrive; at the exit lane, visits whose
     vehicle is inside. A resident vehicle wins if a visit has the same plate.
@@ -351,7 +382,14 @@ async def _known_plates(
             _length_near(Vehicle.plate_normalized, plate, max_distance),
         )
     )
-    known: dict[str, Vehicle | Visit] = {}
+    known: dict[str, Vehicle | Visit | GuestPass] = {}
+    if event.direction is LaneDirection.ENTRY:
+        # Lowest priority first: a guest pass, then an expected visit, then a resident's car.
+        for guest_pass in await guest_passes.plate_passes(
+            db, event.society_id, plate, event.captured_at, max_distance
+        ):
+            if guest_pass.plate_normalized:
+                known[guest_pass.plate_normalized] = guest_pass
     for visit in visits:
         if visit.plate_normalized:
             known[visit.plate_normalized] = visit
