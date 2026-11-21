@@ -115,7 +115,7 @@ jobs:
           curl -fsS -X POST http://127.0.0.1:8000/api/v1/gate-events \
             -H "X-Device-Key: $KEY" -F plate_text=DL01AB1234 -F confidence=0.95 \
             -F "snapshot=@car.jpg;type=image/jpeg" -o event.json
-          cat event.json
+          cat event.json && echo
           EVENT=$(python3 -c "import json; print(json.load(open('event.json'))['event']['id'])")
           TOKEN=$(curl -fsS -X POST http://127.0.0.1:8000/api/v1/auth/login \
             -d "username=guard@example.com&password=GateSense@123" \

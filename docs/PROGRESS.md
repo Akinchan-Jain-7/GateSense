@@ -7,7 +7,7 @@ The agent updates this file at the start and end of every session.
 |---|---|---|---|
 | 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
 | 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
-| 2 | Gate event engine | 🟡 In progress | |
+| 2 | Gate event engine | ✅ Done | [#4](https://github.com/Akinchan-Jain-7/GateSense/pull/4) |
 | 3 | ANPR ML pipeline | ⚪ Not started | |
 | 4 | Visitors, approvals, guest passes, real time | ⚪ Not started | |
 | 5 | Escalation, notifications, scheduled jobs | ⚪ Not started | |
@@ -16,7 +16,7 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Now building:** Phase 2 (gate event engine).
+**Next up:** Phase 3 (ANPR ML pipeline).
 
 ## Standing rules from the owner
 
@@ -63,8 +63,8 @@ Branch: `phase-2-gate-event-engine`
 - [x] Verified locally: 355 tests on real Postgres 16 + Redis, 97% coverage overall, 99% on
       Phase 2 code; ruff, mypy, migrations up/down/up + `alembic check`; live API run as
       camera, guard and resident (debounce, alert, review, snapshot round trip, 403)
-- [ ] CI green, including the compose job's real S3 (RustFS) snapshot round trip
-- [ ] Merged
+- [x] CI green, including the compose job's real S3 (RustFS) snapshot round trip
+- [x] Merged: [PR #4](https://github.com/Akinchan-Jain-7/GateSense/pull/4)
 
 ### Notes and deviations from the brief
 
@@ -83,8 +83,8 @@ Branch: `phase-2-gate-event-engine`
   folding). The ANPR worker groups frames per car in Phase 3. See ADR-0006.
 - **Housekeeping:** a local Redis dump file (`backend/dump.rdb`, test keys only) was
   committed by accident in two branch commits and removed in a follow-up commit;
-  `dump.rdb` is now git-ignored. Rewriting the already-pushed branch was not allowed, so
-  it remains in the branch history (not in any file on `main`).
+  `dump.rdb` is now git-ignored. Rewriting already-pushed history was not allowed, so the
+  file stays in the history of those two commits, but it is not in the repository's files.
 
 ## Phase 1: Backend core, database, auth
 
