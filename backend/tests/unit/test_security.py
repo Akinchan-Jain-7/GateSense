@@ -73,7 +73,7 @@ def test_token_signed_with_another_secret_is_rejected() -> None:
 
 def test_unsigned_none_algorithm_token_is_rejected() -> None:
     payload = {"sub": str(uuid.uuid4()), "type": "access", "jti": str(uuid.uuid4()), "exp": 9e9}
-    token = jwt.encode(payload, key=None, algorithm="none")
+    token = jwt.encode(payload, key="", algorithm="none")  # "" = no key for alg "none"
 
     with pytest.raises(InvalidTokenError):
         decode_token(SETTINGS, token, expected_type="access")

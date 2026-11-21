@@ -1,4 +1,4 @@
-"""FastAPI dependencies: database session, settings, current user, roles, devices.
+"""FastAPI dependencies: database, Redis, storage, settings, current user, roles, devices.
 
 Role-based access control (RBAC) lives here. A route declares who may call it by
 asking for a typed user, e.g. `admin: AdminUser`. FastAPI runs the check before the
@@ -8,8 +8,9 @@ route body, so a guard calling an admin route gets 403 and the route never runs.
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Security, status
+from fastapi import Depends, HTTPException, Query, Request, Security, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -19,9 +20,26 @@ from app.models import Device, User
 from app.models.enums import UserRole
 from app.services import gates as gates_service
 from app.services.pagination import PageRequest
+from app.services.storage import SnapshotStorage
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
+
+
+def get_redis(request: Request) -> Redis:
+    """The Redis client created at start-up (see `lifespan` in main.py)."""
+    redis: Redis = request.app.state.redis
+    return redis
+
+
+def get_snapshot_storage(request: Request) -> SnapshotStorage:
+    """Where plate snapshots go: a local folder or S3, chosen by settings at start-up."""
+    storage: SnapshotStorage = request.app.state.snapshot_storage
+    return storage
+
+
+RedisClient = Annotated[Redis, Depends(get_redis)]
+SnapshotStore = Annotated[SnapshotStorage, Depends(get_snapshot_storage)]
 
 # tokenUrl powers the "Authorize" button in /docs (it posts the login form there).
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)

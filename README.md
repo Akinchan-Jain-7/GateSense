@@ -59,7 +59,7 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 | End-to-end plate accuracy | TBD (measured in Phase 3) |
 | ANPR latency on CPU | TBD (measured in Phase 3) |
 | Gate-event ingestion throughput / p95 | TBD (measured in Phase 7) |
-| Backend test coverage | 97% (146 tests, Phase 1); enforced in CI from Phase 7 |
+| Backend test coverage | 97% (355 tests, Phase 2); enforced in CI from Phase 7 |
 
 ## Tech stack
 

@@ -34,6 +34,7 @@ def test_valid_plates_are_normalized(typed: str, expected: str) -> None:
         "22BH12AA",  # BH number must be 4 digits
         "BH221234AA",  # BH: year comes first
         "DL01AB1234XYZ",
+        "XX01AB1234",  # XX is not a state code
     ],
 )
 def test_invalid_plates_are_rejected(typed: str) -> None:

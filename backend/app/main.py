@@ -15,6 +15,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import engine
+from app.services.storage import build_snapshot_storage
 
 logger = logging.getLogger("gatesense.api")
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
     app.state.redis = Redis.from_url(settings.redis_url, socket_connect_timeout=2)
+    app.state.snapshot_storage = build_snapshot_storage(settings)
     logger.info("api started", extra={"env": settings.app_env})
     yield
     await app.state.redis.aclose()

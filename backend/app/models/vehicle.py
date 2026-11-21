@@ -28,7 +28,7 @@ class Vehicle(UUIDPrimaryKey, Timestamps, Base):
 
 
 class WatchlistEntry(UUIDPrimaryKey, Timestamps, Base):
-    """A flagged plate. Seeing it at a gate raises a high-priority alert (Phase 2)."""
+    """A flagged plate. Seeing it at a gate raises a high-priority alert."""
 
     __tablename__ = "watchlist"
     __table_args__ = (UniqueConstraint("society_id", "plate_normalized"),)

@@ -20,6 +20,7 @@ from app.models.enums import (
     EscalationTaskStatus,
     VisitCategory,
     VisitStatus,
+    VisitTrigger,
     str_enum,
 )
 
@@ -36,7 +37,11 @@ class Visitor(UUIDPrimaryKey, Timestamps, Base):
 
 
 class Visit(UUIDPrimaryKey, Timestamps, Base):
-    """One visit to one flat, moved through the visit state machine (Phase 2)."""
+    """One visit to one flat, moved through the visit state machine.
+
+    Change `status` only through app/services/visits.py, which checks the move is legal
+    (app/services/visit_state.py) and records it in `visit_status_changes`.
+    """
 
     __tablename__ = "visits"
 
@@ -67,6 +72,28 @@ class Visit(UUIDPrimaryKey, Timestamps, Base):
     entered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expected_exit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     exited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class VisitStatusChange(UUIDPrimaryKey, Base):
+    """History of a visit: one row per status change, never updated or deleted."""
+
+    __tablename__ = "visit_status_changes"
+
+    visit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("visits.id", ondelete="CASCADE"), index=True
+    )
+    # None for the row that records the visit being created.
+    # Each enum column needs its own name: it becomes the name of its CHECK constraint.
+    from_status: Mapped[VisitStatus | None] = mapped_column(str_enum(VisitStatus, "from_status"))
+    to_status: Mapped[VisitStatus] = mapped_column(str_enum(VisitStatus, "to_status"))
+    trigger: Mapped[VisitTrigger | None] = mapped_column(str_enum(VisitTrigger, "visit_trigger"))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Who or what caused it: a user (guard, resident), a camera read, or neither (a job).
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    gate_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("gate_events.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(String(255))
 
 
 class Approval(UUIDPrimaryKey, Timestamps, Base):

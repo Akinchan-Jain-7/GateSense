@@ -4,8 +4,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import create_token, generate_device_key, hash_password
-from app.models import Device, Flat, Gate, Resident, Society, User, Vehicle
-from app.models.enums import LaneDirection, ResidentType, UserRole, VehicleType
+from app.models import (
+    Device,
+    Flat,
+    Gate,
+    Resident,
+    Society,
+    User,
+    Vehicle,
+    Visit,
+    WatchlistEntry,
+)
+from app.models.enums import (
+    LaneDirection,
+    ResidentType,
+    UserRole,
+    VehicleType,
+    VisitCategory,
+    VisitStatus,
+)
 
 TEST_PASSWORD = "correct-horse-battery"  # noqa: S105 - test-only credential
 # Argon2 is slow on purpose; hash once and reuse for every test user.
@@ -99,6 +116,37 @@ async def make_device(
     db.add(device)
     await db.commit()
     return device, key.plaintext
+
+
+async def make_watchlist_entry(
+    db: AsyncSession, society: Society, plate: str, reason: str = "Reported by residents"
+) -> WatchlistEntry:
+    entry = WatchlistEntry(society_id=society.id, plate_normalized=plate, reason=reason)
+    db.add(entry)
+    await db.commit()
+    return entry
+
+
+async def make_visit(
+    db: AsyncSession,
+    society: Society,
+    flat: Flat,
+    plate: str | None,
+    *,
+    status: VisitStatus = VisitStatus.APPROVED,
+    category: VisitCategory = VisitCategory.GUEST,
+) -> Visit:
+    """A visit as Phase 4's registration flow will create it (no API for that yet)."""
+    visit = Visit(
+        society_id=society.id,
+        flat_id=flat.id,
+        plate_normalized=plate,
+        category=category,
+        status=status,
+    )
+    db.add(visit)
+    await db.commit()
+    return visit
 
 
 def auth_headers(user: User) -> dict[str, str]:

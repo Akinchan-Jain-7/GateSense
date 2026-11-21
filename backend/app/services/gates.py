@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import contains_eager
 
 from app.core.security import generate_device_key, hash_api_key
 from app.models import Device, Gate, User
@@ -154,10 +155,14 @@ async def delete_device(db: AsyncSession, actor: User, device_id: uuid.UUID) -> 
 
 
 async def authenticate_device(db: AsyncSession, api_key: str) -> Device:
-    """Find the active device for an API key (sent by cameras in `X-Device-Key`)."""
+    """Find the active device for an API key (sent by cameras in `X-Device-Key`).
+
+    The device's gate is loaded too (`device.gate.society_id` says whose event it is).
+    """
     device = await db.scalar(
         select(Device)
         .join(Device.gate)
+        .options(contains_eager(Device.gate))
         .where(
             Device.api_key_hash == hash_api_key(api_key),
             Device.is_active.is_(True),
