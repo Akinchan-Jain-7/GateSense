@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.models.enums import UserRole
+from app.models.enums import LaneDirection, UserRole
 from app.schemas.common import ReadModel, WriteModel
 from app.schemas.flat import FlatSummary
 
@@ -34,4 +34,4 @@ class DeviceIdentity(ReadModel):
     id: uuid.UUID
     name: str
     gate_id: uuid.UUID
-    direction: str
+    direction: LaneDirection
