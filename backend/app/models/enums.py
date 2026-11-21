@@ -32,7 +32,7 @@ class LaneDirection(StrEnum):
 
 
 class MatchResult(StrEnum):
-    """What the gate-event engine (Phase 2) decided a plate read was."""
+    """What the gate-event engine decided a plate read was."""
 
     RESIDENT = "resident"
     GUEST_PASS = "guest_pass"  # noqa: S105 - "pass" as in guest pass
@@ -50,7 +50,7 @@ class VisitCategory(StrEnum):
 
 
 class VisitStatus(StrEnum):
-    """States of the visit state machine (rules arrive in Phase 2)."""
+    """States of the visit state machine. The rules live in app/services/visit_state.py."""
 
     PENDING_APPROVAL = "pending_approval"
     APPROVED = "approved"
@@ -60,6 +60,35 @@ class VisitStatus(StrEnum):
     EXITED = "exited"
     DENIED = "denied"
     EXPIRED = "expired"
+
+
+class VisitTrigger(StrEnum):
+    """What happened to a visit; each trigger moves it to a new status (or is illegal)."""
+
+    APPROVE = "approve"  # a resident (or the guard, after the timeout) said yes
+    DENY = "deny"
+    ENTER = "enter"  # the entry camera read the plate, or the guard let them in
+    OVERSTAY = "overstay"  # the time limit passed while inside
+    ESCALATE = "escalate"  # the overstay was escalated to the guard (call task)
+    EXIT = "exit"  # the exit camera read the plate, or the guard marked the exit
+    EXPIRE = "expire"  # never approved, or approved but never arrived
+
+
+class ReviewReason(StrEnum):
+    """Why a gate event was sent to the guard review queue."""
+
+    LOW_CONFIDENCE = "low_confidence"  # OCR wasn't sure
+    UNREADABLE = "unreadable"  # the text can't be turned into a valid plate
+    AMBIGUOUS_MATCH = "ambiguous_match"  # close to two or more known plates
+
+
+class AlertKind(StrEnum):
+    WATCHLIST = "watchlist"
+
+
+class AlertSeverity(StrEnum):
+    HIGH = "high"
+    NORMAL = "normal"
 
 
 class ApprovalStatus(StrEnum):

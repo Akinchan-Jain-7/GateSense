@@ -46,6 +46,34 @@ class Settings(BaseSettings):
     default_page_size: int = Field(default=20, ge=1)
     max_page_size: int = Field(default=100, ge=1)
 
+    # --- Gate events ---
+    # OCR reads below this confidence go to the guard review queue instead of acting.
+    plate_confidence_threshold: float = Field(default=0.80, ge=0, le=1)
+    # Max edit distance for fuzzy matching against known plates (0 = exact only).
+    plate_fuzzy_max_distance: int = Field(default=1, ge=0, le=2)
+    # The same plate on the same lane within this many seconds is one event (debounce).
+    gate_event_cooldown_seconds: int = Field(default=30, ge=1)
+    # Reject capture times this far in the future (camera clock drift beyond this = bug).
+    gate_event_max_clock_skew_seconds: int = Field(default=300, ge=0)
+
+    # --- Visit time limits (defaults; Phase 4 makes them admin-configurable) ---
+    visit_limit_guest_minutes: int = Field(default=240, ge=1)
+    visit_limit_delivery_minutes: int = Field(default=20, ge=1)
+    visit_limit_cab_minutes: int = Field(default=10, ge=1)
+    # Service visits normally get a resident-set duration; this is the fallback.
+    visit_limit_service_minutes: int = Field(default=120, ge=1)
+
+    # --- Plate snapshots ---
+    # "local": files in snapshot_local_dir. "s3": any S3-compatible store (RustFS in dev).
+    snapshot_storage: Literal["local", "s3"] = "local"
+    snapshot_local_dir: Path = REPO_ROOT_ENV_FILE.parent / "data" / "snapshots"
+    snapshot_max_bytes: int = Field(default=2_000_000, ge=1)
+    s3_endpoint_url: str | None = "http://localhost:9000"
+    s3_bucket: str = "gatesense-snapshots"
+    s3_region: str = "us-east-1"
+    s3_access_key: str = "gatesense"
+    s3_secret_key: str = "gatesense_dev_secret"  # noqa: S105 - public dev default
+
     # --- Demo data ---
     # Password for every seeded demo account. Public on purpose: the live demo shows it.
     demo_password: str = "GateSense@123"  # noqa: S105
