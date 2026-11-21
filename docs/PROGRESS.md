@@ -39,24 +39,52 @@ The agent updates this file at the start and end of every session.
 
 Branch: `phase-2-gate-event-engine`
 
-- [ ] OCR plate normaliser: Indian formats + state codes, position-aware look-alike fixes
-      (O/0, I/1, B/8, S/5, Z/2…), bounded edit-distance fuzzy matcher; ≥40 table-driven tests
-- [ ] Visit state machine as a pure module; illegal transitions raise; every change logged
-      in a new `visit_status_changes` table
-- [ ] Migration: `alerts` table, `visit_status_changes` table, new `gate_events` columns
-      (pairing, match distance, review fields)
-- [ ] Snapshot storage abstraction: local folder and S3-compatible (boto3), tested with moto
-- [ ] Idempotency (event hash) + debounce (Redis cooldown per plate per lane, by capture time)
-- [ ] `POST /api/v1/gate-events` (device key, multipart with snapshot) running the matching
-      pipeline: watchlist → resident vehicle → open visit → unknown; low confidence → review
-- [ ] Resident entry/exit pairing; visitor entry (APPROVED → INSIDE) and exit (→ EXITED)
-- [ ] Guard APIs: list events, snapshot download, review queue + correction (saved to
-      `plate_corrections`), alerts + acknowledge
-- [ ] Scripted-sequence integration test (visits, alerts, review items)
-- [ ] ADRs: visit state machine, debounce strategy, snapshot storage + model changes
-- [ ] `docs/database.md`, `docs/api.md`, `.env.example`, `docs/learn/phase-2.md`
-- [ ] Verified: full suite, ruff, mypy, live API run; CI green (compose job posts a real
-      event with a snapshot to S3 storage)
+- [x] OCR plate repair: tries every Indian plate layout, swaps look-alikes (O/0, I/1, B/8,
+      S/5, Z/2, G/6, T/7, A/4) only where the layout needs the other kind, real state codes,
+      HSRP "IND" prefix; bounded edit-distance fuzzy matcher. 50 table-driven read cases +
+      9 edit-distance cases
+- [x] Visit state machine as a pure module (all 56 status × trigger pairs tested); every
+      change saved with a `visit_status_changes` row
+- [x] Migration: `alerts`, `visit_status_changes`; `gate_events` gets `ocr_fixes`,
+      `match_distance`, `paired_event_id`, `review_reason`, `reviewed_at/by`, review-queue index
+- [x] Snapshot storage: local folder and S3-compatible (boto3); images checked by their bytes
+- [x] Idempotency (unique event hash, race-safe) + debounce (Redis Lua, sliding window by
+      capture time, fails open)
+- [x] `POST /api/v1/gate-events` (device key, multipart): watchlist → unsure/unreadable
+      (review) → resident vehicle → expected visitor → unknown
+- [x] Resident exit closes the vehicle's open entry; visitor entry (APPROVED → INSIDE, with
+      deadline) and exit (→ EXITED)
+- [x] Staff APIs: list/filter events, snapshot download, review queue + correct/dismiss
+      (saved to `plate_corrections`), alerts + acknowledge
+- [x] Scripted-sequence test: a morning at the gate (`tests/api/test_gate_scenario.py`)
+- [x] ADR-0005 (state machine), ADR-0006 (debounce + idempotency), ADR-0007 (storage +
+      model changes), ADR-0008 (plate repair + fuzzy matching)
+- [x] `docs/database.md`, `docs/api.md`, `.env.example`, `docs/learn/phase-2.md`
+- [x] Verified locally: 355 tests on real Postgres 16 + Redis, 97% coverage overall, 99% on
+      Phase 2 code; ruff, mypy, migrations up/down/up + `alembic check`; live API run as
+      camera, guard and resident (debounce, alert, review, snapshot round trip, 403)
+- [ ] CI green, including the compose job's real S3 (RustFS) snapshot round trip
+- [ ] Merged
+
+### Notes and deviations from the brief
+
+- **New tables and columns** beyond the brief's starting data model (`alerts`,
+  `visit_status_changes`, review and pairing columns). Reasons in ADR-0007.
+- **New dependencies:** `boto3` (S3 client for snapshots) and, for tests only, `moto`
+  (in-memory fake S3). The brief lists S3-compatible storage but no client library.
+  moto pulls in `cryptography`, which made PyJWT's types stricter; one test changed.
+- **Plates now need a real state/UT code**, for typed plates too (`XX01AB1234` is a 422).
+- **Visit time limits** are settings for now (guest 4 h, delivery 20 min, cab 10 min,
+  service 2 h). Admin-configurable limits and resident-set service durations come with
+  visitor registration in Phase 4, as the brief's phase plan says.
+- **Nothing pushes to the guard console yet.** Alerts and review items are stored and
+  listed; WebSocket push arrives in Phase 4.
+- **Debounced reads are not stored**, and debounce is exact on the repaired plate (no fuzzy
+  folding). The ANPR worker groups frames per car in Phase 3. See ADR-0006.
+- **Housekeeping:** a local Redis dump file (`backend/dump.rdb`, test keys only) was
+  committed by accident in two branch commits and removed in a follow-up commit;
+  `dump.rdb` is now git-ignored. Rewriting the already-pushed branch was not allowed, so
+  it remains in the branch history (not in any file on `main`).
 
 ## Phase 1: Backend core, database, auth
 
