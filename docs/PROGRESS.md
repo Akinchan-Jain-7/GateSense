@@ -6,7 +6,7 @@ The agent updates this file at the start and end of every session.
 | Phase | Name | Status | PR |
 |---|---|---|---|
 | 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
-| 1 | Backend core, database, auth | 🟡 In review | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
+| 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
 | 2 | Gate event engine | ⚪ Not started | |
 | 3 | ANPR ML pipeline | ⚪ Not started | |
 | 4 | Visitors, approvals, guest passes, real time | ⚪ Not started | |
@@ -16,7 +16,7 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** owner review of Phase 1 ([PR #2](https://github.com/Akinchan-Jain-7/GateSense/pull/2)), then Phase 2 (gate event engine).
+**Next up:** Phase 2 (gate event engine).
 
 ## Standing rules from the owner
 
@@ -28,6 +28,12 @@ The agent updates this file at the start and end of every session.
   checked on every PR. Production images are built in Phase 8. Setup instructions in each
   phase target this workflow (see `CONTRIBUTING.md`).
 - The owner's local clone lives at `C:\Users\akinc\projects\GateSense` (not in OneDrive).
+- **One phase per chat, agent merges (owner, 2026-11-21).** Each phase is built in its own
+  new chat, working in the owner's project folder. The agent builds the phase, opens the PR,
+  merges it itself once CI is green, then ends with a phase summary and asks the owner
+  whether to proceed. The owner studies the code after the build, not during it. Anything
+  only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
+  in the summary.
 
 ## Phase 1: Backend core, database, auth
 
@@ -47,6 +53,7 @@ Branch: `phase-1-backend-core`
 - [x] CI: Postgres + Redis service containers; compose job runs migrations and checks `/ready`
 - [x] `docs/api.md` (conventions + permission matrix), `docs/learn/phase-1.md`
 - [x] Verified: full suite, ruff, mypy, gitleaks locally; CI green; live API checked as each role
+- [x] Merged: [PR #2](https://github.com/Akinchan-Jain-7/GateSense/pull/2)
 
 ### Notes and deviations from the brief
 
