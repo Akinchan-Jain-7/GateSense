@@ -93,6 +93,32 @@ jobs:
       - name: Unit tests (Redis-backed debounce tests run on Linux only)
         run: uv run pytest tests/unit --deselect tests/unit/test_debounce.py -p no:cacheprovider
 
+  anpr:
+    name: ANPR worker (lint, types, tests, image)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: anpr
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Lint and format check
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy
+      - name: Tests
+        run: uv run pytest --cov --cov-report=term-missing
+      - name: Build the worker image and run a simulated camera
+        run: |
+          docker build -t gatesense-anpr .
+          docker run --rm gatesense-anpr gatesense-anpr --simulate 3 --dry-run --seed 1
+
   frontend:
     name: Frontend (lint, types, tests, build)
     runs-on: ubuntu-latest

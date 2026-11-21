@@ -22,6 +22,8 @@ letter" isn't true for every plate.
    numbers, 1- or 3-letter series, 1-digit districts). The lowest score wins. Example:
    `KAO5MNOO42` reads as `KA05MN0042` (3 fixes, normal shape) rather than `KA05MNO042`
    (2 fixes, but a 3-letter series and a 3-digit number).
+   A 1-digit district costs more outside Delhi (only Delhi writes `DL3C…`; elsewhere it's
+   `KA05`), added after a real EasyOCR read `KAOSMNO042` came out as `KA0SMN0042` (Phase 3).
 3. **Real-world constraints prune guesses:** the state code must be a real state/UT code
    (`0L…` → `DL…`, not `OL…`), and a fix may never produce I, O or Q in a series, because
    RTOs don't issue those letters there. More than 3 fixes → unreadable.
@@ -51,7 +53,7 @@ letter" isn't true for every plate.
 
 ## Consequences
 
-- 50 table-driven plate reads (41 repairable, 9 unreadable) plus 9 edit-distance cases pin
+- 52 table-driven plate reads (43 repairable, 9 unreadable) plus 9 edit-distance cases pin
   the behaviour (`tests/unit/test_plate_reader.py`); changing a
   penalty must keep them passing.
 - Requiring a real state code means a plate with a typo in the state can't be saved by an

@@ -8,7 +8,7 @@ The agent updates this file at the start and end of every session.
 | 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
 | 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
 | 2 | Gate event engine | ✅ Done | [#4](https://github.com/Akinchan-Jain-7/GateSense/pull/4) |
-| 3 | ANPR ML pipeline | ⚪ Not started | |
+| 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
 | 4 | Visitors, approvals, guest passes, real time | ⚪ Not started | |
 | 5 | Escalation, notifications, scheduled jobs | ⚪ Not started | |
 | 6 | Frontend (professional UI) | ⚪ Not started | |
@@ -16,7 +16,10 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 3 (ANPR ML pipeline).
+**Next up:** Phase 4 (visitors, approvals, guest passes, real time).
+
+**Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
+`02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
 
 ## Standing rules from the owner
 
@@ -34,6 +37,46 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 3: ANPR ML pipeline
+
+Branch: `phase-3-anpr-pipeline`
+
+- [x] `anpr` package: detector (YOLOv8 → ONNX Runtime, NumPy letterbox/decode/NMS) → crop →
+      OCR (EasyOCR / PaddleOCR behind one interface) → clean → frame tracker with voting → client
+- [x] Sources: webcam index, RTSP/HTTP, video file (video-time timestamps), image folder,
+      `--simulate`; `--dry-run`
+- [x] Client: multipart POST with device key; retries with backoff on network errors, 429, 5xx
+- [x] Model download from GitHub Releases with SHA-256 check (weights never in git)
+- [x] Colab notebook 01: Roboflow (key from Colab Secrets) or Drive dataset → one-class
+      remap → train YOLOv8n and YOLOv8s → score on test split → ONNX → pick by a fixed rule.
+      Its dataset/train/score/export cells were dry-run on the build machine (1 epoch, tiny data)
+- [x] Colab notebook 02: EasyOCR vs PaddleOCR on labelled photos, per condition, fixed rule
+- [x] Dataset guide for the owner's photos: `anpr/DATASET.md`
+- [x] Evaluation scripts → `anpr/eval/results/`; **measured** CPU latency (FP32 vs INT8
+      dynamic vs INT8 static) for the YOLOv8n/s plate architectures
+- [x] End-to-end run: synthetic gate video → stand-in detector → real EasyOCR → tracker →
+      real API: 4 cars → 4 correct events (found and fixed a plate-repair bug)
+- [x] ADR-0009, `docs/learn/phase-3.md`, anpr README, Dockerfile, CI job (tests + image)
+- [ ] **Owner:** run notebook 01 in Colab (needs a free Roboflow key in Colab Secrets), upload
+      `plate_detector.onnx` to a `models-v1` release, share `detector_comparison.md/.json`
+- [ ] **Owner:** label ~50+ photos per condition (`anpr/DATASET.md`), run notebook 02, share
+      `ocr_comparison.md`; then the README accuracy rows and ADR-0009's choice get filled in
+
+### Notes and deviations
+
+- Datasets (Roboflow, Kaggle, Hugging Face) and the PyTorch CPU index are blocked from the
+  build machine, so training and accuracy evaluation move to the owner's Colab runs, as the
+  brief allows. PyTorch from PyPI *did* install, which made the latency benchmark and the
+  notebook dry-run possible.
+- The "video run produces correct gate events" check used a **stand-in detector** (fixed
+  box) because no trained model exists yet. OCR, tracker, client and API were all real.
+- Latency numbers are from the 2-core cloud build machine, with untrained models of the
+  same architecture (latency doesn't depend on weights). Rerun on the gate hardware.
+- **Licence:** Ultralytics YOLOv8 is AGPL-3.0, and that extends to trained weights.
+  The repo code stays MIT; see ADR-0009.
+- The plate repair (Phase 2) got one fix from the real OCR run: 1-digit districts outside
+  Delhi now cost more (`KAOSMNO042` → `KA05MN0042`).
 
 ## Phase 2: Gate event engine
 

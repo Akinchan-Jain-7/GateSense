@@ -28,6 +28,7 @@ test-results/
 
 # --- ML: data and weights never go in git (see anpr/README.md) ---
 anpr/data/
+anpr/models/
 *.pt
 *.onnx
 *.engine

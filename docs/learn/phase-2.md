@@ -74,7 +74,7 @@ are never closed are data-quality signals the nightly reconciliation job reports
 
 1. `backend/app/services/plates.py`: plate cleaning, `read_ocr_plate` (layouts, scoring),
    `bounded_edit_distance`, `closest_plates`. Notice how the penalties are explained.
-2. `backend/tests/unit/test_plate_reader.py`: the 50-case table. Read the tricky ones
+2. `backend/tests/unit/test_plate_reader.py`: the 52-case table. Read the tricky ones
    (`KAO5MNOO42`, `0L01AB1234`, `UP16A01234`) and work out *why* each answer wins.
 3. `backend/app/services/visit_state.py`: the transition table and `apply_transition`.
    Notice there is no database code at all.
