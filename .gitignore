@@ -51,3 +51,6 @@ Thumbs.db
 
 # --- Local plate snapshots (SNAPSHOT_STORAGE=local) ---
 /data/
+
+# --- Local Redis snapshots ---
+dump.rdb
