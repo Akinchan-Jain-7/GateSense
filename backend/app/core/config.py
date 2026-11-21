@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     database_url: str = (
-        "postgresql+psycopg://gatesense:gatesense_dev_password@localhost:5432/gatesense"
+        "postgresql+psycopg://gatesense:gatesense_dev_password@127.0.0.1:5432/gatesense"
     )
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://127.0.0.1:6379/0"
 
     # --- Auth ---
     jwt_secret_key: str = DEV_JWT_SECRET
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     snapshot_storage: Literal["local", "s3"] = "local"
     snapshot_local_dir: Path = REPO_ROOT_ENV_FILE.parent / "data" / "snapshots"
     snapshot_max_bytes: int = Field(default=2_000_000, ge=1)
-    s3_endpoint_url: str | None = "http://localhost:9000"
+    s3_endpoint_url: str | None = "http://127.0.0.1:9000"
     s3_bucket: str = "gatesense-snapshots"
     s3_region: str = "us-east-1"
     s3_access_key: str = "gatesense"

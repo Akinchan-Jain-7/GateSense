@@ -12,6 +12,7 @@ import app.models  # noqa: F401 - registers every table on Base.metadata
 from alembic import context
 from app.core.config import get_settings
 from app.db.base import Base
+from app.db.session import CONNECT_TIMEOUT_SECONDS
 
 config = context.config
 
@@ -39,7 +40,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    engine = create_engine(_database_url(), poolclass=pool.NullPool)
+    engine = create_engine(
+        _database_url(),
+        poolclass=pool.NullPool,
+        connect_args={"connect_timeout": CONNECT_TIMEOUT_SECONDS},
+    )
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
         with context.begin_transaction():

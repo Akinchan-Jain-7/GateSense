@@ -15,11 +15,16 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import get_settings
 
+CONNECT_TIMEOUT_SECONDS = 5
+
 
 def create_engine(database_url: str) -> AsyncEngine:
     # pool_pre_ping: test a pooled connection before using it, so a restarted
     # Postgres doesn't cause "connection closed" errors on the first request.
-    return create_async_engine(database_url, pool_pre_ping=True)
+    # connect_timeout: fail with a clear error instead of hanging if Postgres is unreachable.
+    return create_async_engine(
+        database_url, pool_pre_ping=True, connect_args={"connect_timeout": CONNECT_TIMEOUT_SECONDS}
+    )
 
 
 engine = create_engine(get_settings().database_url)
