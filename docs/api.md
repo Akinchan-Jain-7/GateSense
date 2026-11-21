@@ -33,9 +33,9 @@ conventions and who may call what. It grows with each phase and is finalised in 
 3. Call any endpoint. Log out (**Authorize → Logout**) and log in as `guard@example.com` or
    `resident@example.com` to see the 403s.
 4. For device auth, use **Authorize → X-Device-Key** with a key printed by the seed script and
-   call `GET /api/v1/devices/me`.
+   call `GET /api/v1/devices/me`, or send a plate read with `POST /api/v1/gate-events`.
 
-## Endpoints (Phase 1)
+## Endpoints
 
 | Method and path | Admin | Guard | Resident | Notes |
 |---|:-:|:-:|:-:|---|
@@ -53,8 +53,47 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `/devices` (all) | ✅ | ❌ | ❌ | Filters: `gate_id`, `direction`, `is_active`. Create and `POST /devices/{id}/rotate-key` return the key once |
 | `GET /devices/me` | – | – | – | Device key only: lets a camera check its key |
 | `/watchlist` (all) | ✅ | ❌ | ❌ | Filters: `is_active`, `q` |
+| `POST /gate-events` | – | – | – | **Device key only.** A camera reports a plate read (see below) |
+| `GET /gate-events`, `GET /gate-events/{id}` | ✅ | ✅ | ❌ | Newest first. Filters: `direction`, `match_result`, `needs_review`, `gate_id`, `q`, `since`, `until` |
+| `GET /gate-events/{id}/snapshot` | ✅ | ✅ | ❌ | The plate image (JPEG / PNG / WebP) |
+| `GET /gate-events/review-queue` | ✅ | ✅ | ❌ | Unsure, unreadable or ambiguous reads not yet handled, newest first |
+| `POST /gate-events/{id}/review` | ✅ | ✅ | ❌ | `{"action": "correct", "plate": "…"}` re-runs matching; `{"action": "dismiss"}`. Once per event (else 409) |
+| `GET /alerts` | ✅ | ✅ | ❌ | Watchlist alerts, newest first. Filter: `acknowledged` |
+| `POST /alerts/{id}/acknowledge` | ✅ | ✅ | ❌ | Safe to repeat; keeps the first guard and time |
 | `GET /health` | – | – | – | Public liveness probe |
 | `GET /ready` | – | – | – | Public readiness probe (checks Postgres and Redis) |
 
-Residents managing their own vehicles, guest passes and approvals arrive in Phase 4.
+Residents managing their own vehicles, guest passes, approvals and visitor registration
+arrive in Phase 4.
 Every admin create / update / delete is written to `audit_logs`.
+
+## Sending a gate event (cameras)
+
+`POST /api/v1/gate-events` takes `multipart/form-data` and the device key in `X-Device-Key`:
+
+| Field | Required | Notes |
+|---|:-:|---|
+| `plate_text` | ✅ | What OCR read, 1–32 characters. Spaces, dashes and look-alike characters are fixed by the server |
+| `confidence` | ✅ | OCR confidence, `0`–`1`. Below `PLATE_CONFIDENCE_THRESHOLD` (0.80) → review queue |
+| `captured_at` | | When the camera saw it, ISO 8601 **with a timezone** (default: now). More than 5 min in the future → 422 |
+| `direction` | | Optional check; must match the device's lane (`entry` / `exit`) |
+| `snapshot` | | JPEG, PNG or WebP, up to `SNAPSHOT_MAX_BYTES` (2 MB, else 413) |
+
+```bash
+curl -X POST http://localhost:8000/api/v1/gate-events \
+  -H "X-Device-Key: gsd_…" \
+  -F plate_text="DL 01 AB I234" -F confidence=0.93 \
+  -F captured_at=2026-11-21T09:30:00+05:30 \
+  -F snapshot=@car.jpg
+```
+
+The response says what happened:
+
+| `status` | HTTP | Meaning |
+|---|---|---|
+| `created` | 201 | A new event; `event.match_result` is `resident`, `visitor`, `watchlist`, `low_confidence` or `unknown` |
+| `duplicate` | 200 | This exact read (same device, text and capture time) was already received: safe retry |
+| `debounced` | 200 | The same plate was seen on this lane within the cooldown (30 s, sliding); `event` is the earlier one |
+
+The rules behind it (matching order, visits, resident pairing, debounce) are explained in
+[docs/learn/phase-2.md](learn/phase-2.md) and ADRs 0005–0008.

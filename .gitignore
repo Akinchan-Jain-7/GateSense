@@ -48,3 +48,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 *.swp
+
+# --- Local plate snapshots (SNAPSHOT_STORAGE=local) ---
+/data/

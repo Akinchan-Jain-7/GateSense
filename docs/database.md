@@ -45,12 +45,15 @@ erDiagram
   devices ||--o{ gate_events : sends
   vehicles |o--o{ gate_events : "matched to"
   gate_events ||--o{ plate_corrections : "fixed by guard"
+  gate_events |o--o| gate_events : "exit closes entry"
+  gate_events ||--o{ alerts : raises
 
   flats ||--o{ visits : receives
   visitors |o--o{ visits : makes
   guest_passes |o--o{ visits : "used for"
   flats ||--o{ guest_passes : creates
   gate_events |o--o| visits : "entry / exit"
+  visits ||--o{ visit_status_changes : "history"
   visits ||--o{ approvals : needs
   visits ||--o{ escalation_tasks : "escalates to"
   visits |o--o{ notifications : triggers
@@ -124,14 +127,27 @@ erDiagram
     uuid device_id FK
     string plate_raw
     string plate_normalized
+    int ocr_fixes
     float confidence
     string snapshot_path
     timestamptz captured_at
     string event_hash UK
     string match_result
+    int match_distance
     uuid vehicle_id FK
     uuid visit_id FK
+    uuid paired_event_id FK,UK
     bool needs_review
+    string review_reason
+    timestamptz reviewed_at
+  }
+  alerts {
+    uuid id PK
+    uuid gate_event_id FK
+    string kind "watchlist"
+    string severity "high | normal"
+    string message
+    timestamptz acknowledged_at
   }
   plate_corrections {
     uuid id PK
@@ -156,6 +172,15 @@ erDiagram
     timestamptz entered_at
     timestamptz expected_exit_at
     timestamptz exited_at
+  }
+  visit_status_changes {
+    uuid id PK
+    uuid visit_id FK
+    string from_status
+    string to_status
+    string trigger "approve | enter | exit…"
+    timestamptz changed_at
+    uuid gate_event_id FK
   }
   approvals {
     uuid id PK
@@ -198,8 +223,10 @@ erDiagram
 
 ## Tables
 
-Phase 1 creates every table, so the whole model can be reviewed at once. Tables marked
-*(Phase N)* have no API yet; the phase that uses them may add columns in a new migration.
+Phase 1 created every table of the brief's data model, so the whole model could be
+reviewed at once. Phase 2 added `alerts`, `visit_status_changes` and some `gate_events`
+columns (see [ADR-0007](adr/0007-snapshot-storage-and-phase-2-model-changes.md)). Tables
+marked *(Phase N)* have no API yet.
 
 **People and places**
 
@@ -218,15 +245,22 @@ Phase 1 creates every table, so the whole model can be reviewed at once. Tables 
 
 - **`vehicles`**: resident vehicles, owned by a flat. `plate_normalized` is unique per
   society and indexed: it's what the gate engine looks up on every camera read.
-- **`watchlist`**: flagged plates (unique per society). A match raises a red alert *(Phase 2)*.
+- **`watchlist`**: flagged plates (unique per society). A read within one edit of a flagged
+  plate raises a high-priority alert.
 - **`gates`**: physical gates ("Main Gate", "Service Gate").
 - **`devices`**: one camera per lane (`entry` or `exit`) of a gate. Authenticates with an
   API key; only its SHA-256 hash is stored, plus a short prefix to tell keys apart.
-- **`gate_events`** *(Phase 2)*: every plate read a device sends: raw text, normalised
-  plate, confidence, snapshot, what it matched. `event_hash` is unique, so a duplicate
-  upload of the same read is stored once.
-- **`plate_corrections`** *(Phase 2)*: a guard's fix of a low-confidence read; kept as
-  labelled data for retraining the OCR model.
+- **`gate_events`**: every plate read a device sends: raw OCR text, the repaired plate and
+  how many look-alike characters were fixed (`ocr_fixes`), confidence, snapshot, what it
+  matched and how closely (`match_distance` 0 = exact, 1 = one character off).
+  `event_hash` is unique, so a retried upload of the same read is stored once.
+  On a resident **exit**, `paired_event_id` points at the **entry** it closes (unique: an
+  entry is closed once). `needs_review` + `review_reason` put an event in the guard's
+  review queue until `reviewed_at` is set. A partial index serves exactly that queue.
+- **`plate_corrections`**: a guard's confirmation or fix of a review item, next to what OCR
+  read: labelled data for retraining the OCR model (Phase 3).
+- **`alerts`**: things the guard must see now (watchlist hits). Open until a guard
+  acknowledges them.
 
 **Visits** *(Phases 2, 4, 5)*
 
@@ -234,7 +268,11 @@ Phase 1 creates every table, so the whole model can be reviewed at once. Tables 
   period *(Phase 5)*.
 - **`visits`**: one visit to one flat, moved through the state machine
   `pending_approval → approved → inside → overstayed → escalated → exited` (+ `denied`,
-  `expired`). Links to the entry and exit gate events.
+  `expired`). Links to the entry and exit gate events. Only `services/visits.py` changes
+  `status`, using the rules in `services/visit_state.py`.
+- **`visit_status_changes`**: the history of every visit, one row per status change (from,
+  to, trigger, when, and the user or gate event that caused it). Written in the same
+  transaction as the change; never updated.
 - **`approvals`**: a request to the flat to approve or deny a visit, with a 3-minute expiry.
 - **`guest_passes`**: created by residents ahead of time, matched by plate or by a one-time
   code (only its hash is stored). Two `CHECK` constraints: a pass needs a plate or a code,
