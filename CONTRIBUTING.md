@@ -36,7 +36,10 @@ Install uv: `pip install uv`, or see the uv docs for a standalone installer.
 docker compose up postgres redis mailpit storage
 
 # 2. Backend, in a second terminal
-cd backend && uv run uvicorn app.main:app --reload      # http://localhost:8000/docs
+cd backend
+uv run alembic upgrade head                             # create / update the database schema
+uv run python -m app.seed                               # demo data (first time only)
+uv run uvicorn app.main:app --reload                    # http://localhost:8000/docs
 
 # 3. Frontend, in a third terminal
 cd frontend && npm run dev                              # http://localhost:5173
@@ -57,7 +60,10 @@ with `docker info`. If Docker Desktop won't start:
 |---|---|
 | Start supporting services | `docker compose up postgres redis mailpit storage` |
 | Start everything in Docker | `docker compose up --build` |
-| Backend tests | `cd backend && uv run pytest` |
+| Backend tests | `cd backend && uv run pytest` (needs Postgres + Redis running) |
+| Apply migrations | `cd backend && uv run alembic upgrade head` |
+| New migration after a model change | `cd backend && uv run alembic revision --autogenerate -m "add X"` |
+| Reset demo data | `cd backend && uv run python -m app.seed --reset` |
 | Backend lint / types | `cd backend && uv run ruff check . && uv run mypy` |
 | Frontend tests | `cd frontend && npm test` |
 | Frontend lint / types | `cd frontend && npm run lint && npm run typecheck` |

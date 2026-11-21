@@ -59,13 +59,13 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 | End-to-end plate accuracy | TBD (measured in Phase 3) |
 | ANPR latency on CPU | TBD (measured in Phase 3) |
 | Gate-event ingestion throughput / p95 | TBD (measured in Phase 7) |
-| Test coverage | TBD (measured in Phase 7) |
+| Backend test coverage | 97% (146 tests, Phase 1); enforced in CI from Phase 7 |
 
 ## Tech stack
 
 | Layer | Tech |
 |---|---|
-| Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic, Celery |
+| Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (async, psycopg 3), Alembic, Celery |
 | Data | PostgreSQL, Redis, S3-compatible object storage |
 | ML | YOLOv8, PaddleOCR / EasyOCR, ONNX Runtime |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, TanStack Query |
@@ -80,7 +80,12 @@ git clone https://github.com/Akinchan-Jain-7/GateSense.git
 cd GateSense
 cp .env.example .env
 docker compose up --build
+# in a second terminal, load the demo data:
+docker compose exec backend python -m app.seed
 ```
+
+Demo logins (password `GateSense@123`): `admin@example.com`, `guard@example.com`,
+`resident@example.com`. Try them in the API docs with the **Authorize** button.
 
 | Service | URL |
 |---|---|
@@ -109,11 +114,17 @@ Architecture Decision Records live in [docs/adr/](docs/adr/):
 
 - [ADR-0001: Monorepo and tech stack](docs/adr/0001-monorepo-and-tech-stack.md)
 - [ADR-0002: Local S3-compatible storage](docs/adr/0002-dev-object-storage.md)
+- [ADR-0003: Database layer and data model](docs/adr/0003-database-layer-and-data-model.md)
+- [ADR-0004: Authentication and authorization](docs/adr/0004-authentication-and-authorization.md)
 
 ## Testing
 
-TBD (expanded as each phase adds tests). Today: `uv run pytest` in `backend/`,
-`npm test` in `frontend/`, and CI runs both plus a full `docker compose up` smoke test.
+- **Backend:** `cd backend && uv run pytest --cov`. Tests run against a real Postgres
+  (each test in its own rolled-back transaction) and cover the API, every role on every
+  route, migrations, and the seed data.
+- **Frontend:** `cd frontend && npm test`.
+- **CI** runs both (with Postgres and Redis service containers), a full `docker compose up`
+  smoke test, and a secret scan.
 
 ## Known limitations
 
