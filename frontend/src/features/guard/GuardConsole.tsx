@@ -142,15 +142,17 @@ export default function GuardConsole() {
             <p className="text-xs text-muted">{user?.full_name}</p>
           </div>
           <LiveIndicator />
-          <div className="ml-auto flex items-center gap-1 lg:hidden">
-            <LanguageButton compact />
-            <ThemeToggle className="size-11" />
-            <SignOutButton
-              className="size-11"
-              onClick={() => void signOut()}
-              label={t('console.signOut')}
-            />
-          </div>
+          {wide ? null : (
+            <div className="ml-auto flex items-center gap-1">
+              <LanguageButton compact />
+              <ThemeToggle className="size-11" />
+              <SignOutButton
+                className="size-11"
+                onClick={() => void signOut()}
+                label={t('console.signOut')}
+              />
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 lg:ml-auto lg:flex">
           <InsideCounter />

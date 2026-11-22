@@ -71,6 +71,12 @@ export default defineConfig({
     // Node's Request needs absolute URLs (browsers resolve /api/... against the page).
     env: { VITE_API_URL: 'http://localhost' },
     include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
-    coverage: { provider: 'v8', include: ['src/**'], exclude: ['src/lib/api/schema.d.ts'] },
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/lib/api/schema.d.ts', 'src/main.tsx'],
+      // CI fails below these (Phase 7). The Playwright journeys cover the rest end to end.
+      thresholds: { lines: 55, statements: 55, functions: 45, branches: 45 },
+    },
   },
 })

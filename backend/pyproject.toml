@@ -58,6 +58,8 @@ concurrency = ["greenlet", "thread"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+# CI fails below this (Phase 7). Currently ~96%; the margin allows honest refactors.
+fail_under = 90
 
 [tool.mypy]
 python_version = "3.12"

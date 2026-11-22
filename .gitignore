@@ -55,3 +55,8 @@ Thumbs.db
 
 # --- Local Redis snapshots ---
 dump.rdb
+
+# Load tests: local DB credentials and raw Locust output (summaries are committed)
+loadtests/.env.local
+loadtests/results/*.csv
+loadtests/results/*.html

@@ -43,6 +43,11 @@ addopts = "-ra"
 [tool.coverage.run]
 source = ["gatesense_anpr", "eval"]
 
+[tool.coverage.report]
+# CI fails below this (Phase 7). Currently ~87%; model code needing real weights is
+# covered by the evaluation scripts instead.
+fail_under = 80
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
