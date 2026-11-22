@@ -1,7 +1,7 @@
 # ADR-0009: ANPR pipeline design, and how the models are chosen
 
-- **Status:** Accepted for the design; model and OCR choices are **pending the owner's Colab
-  runs** (notebooks 01 and 02), with the selection rules fixed in advance below.
+- **Status:** Accepted. Detector chosen by the rule below (YOLOv8n, 2026-11-22); the OCR
+  engine is still **pending** labelled local photos (notebook 02).
 - **Date:** 2026-11-22
 
 ## Context
@@ -46,6 +46,28 @@ results", ONNX Runtime for inference, and Colab for training.
 
 Fixing the rules first stops "picking the winner, then finding a reason".
 
+## Outcome: detector (2026-11-22)
+
+Trained on Kaggle (Tesla T4) with notebook 01: 453 training and 52 validation images from
+four CC0 Kaggle datasets, scored on 354 photos from a fifth, separate dataset (Gujarat,
+Apache 2.0) that was never used for training.
+
+| Model | Test mAP50 | Test mAP50-95 | Recall | Val mAP50-95 | ONNX |
+|---|---|---|---|---|---|
+| YOLOv8n | 0.745 | 0.384 | 0.866 | 0.598 | 12.8 MB |
+| YOLOv8s | 0.762 | 0.343 | 0.903 | 0.623 | 44.7 MB |
+
+YOLOv8s doesn't beat YOLOv8n by 0.02 mAP50-95 on the test set (it is 0.04 lower), so the
+rule picks **YOLOv8n**. The larger model finds slightly more plates but draws looser boxes
+on unfamiliar photos; with this little training data its extra capacity doesn't help.
+The validation-to-test drop (0.60 → 0.38 mAP50-95) is the honest cost of a new camera and
+place; more varied local photos are the next improvement. Full table:
+`anpr/eval/results/detector_comparison.md`.
+
+Training data uses only datasets with a clear licence. The largest Indian plate set on
+Kaggle (15k images) was left out: it states no licence and mixes augmented copies into its
+test split.
+
 ## Alternatives considered
 
 - **Ultralytics at run time** (`YOLO("best.pt")`): the simplest code, but pulls PyTorch
@@ -70,5 +92,6 @@ Apache-2.0). Swapping detectors only means a different `decode_*` function.
 ## Consequences
 
 - The worker can be installed on a laptop in a minute and runs without a GPU.
-- Detection/OCR accuracy numbers stay "pending" until the owner runs two notebooks.
+- Detector accuracy is measured (above); OCR and per-condition accuracy stay "pending"
+  until labelled local photos exist.
 - If a model with a different output format is used later, `decode_yolov8` needs a sibling.
