@@ -10,9 +10,3 @@ description = "Prose in CLAUDE.md ('bcrypt/argon2 password hashing') trips gener
 regexTarget = "match"
 regexes = ['''bcrypt/argon2''']
 
-[[allowlists]]
-description = """An empty variable in .env.prod.example (`METRICS_TOKEN=` with nothing after
-the `=`): generic-api-key reads the next line as its value. Only matches when the value is
-empty, so a real token typed after the `=` is still caught."""
-regexTarget = "match"
-regexes = ['''^METRICS_TOKEN=\s''']
