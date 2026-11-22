@@ -24,6 +24,29 @@ Phase 9. Phase 8 goes live once the owner picks a host and creates the account (
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
 
+## Handoff (end of session, 2026-11-22 22:05 IST)
+
+Pick up here in the next session:
+
+1. **PR #11 (Phase 8):** 8 of 9 CI checks green after merging main (#12). The secret scan
+   failed on a false positive (`METRICS_TOKEN=` empty in `.env.prod.example`); a narrow
+   allowlist was pushed in `.gitleaks.toml`. Check that the scan is now green.
+2. **Kaggle detector training** (owner's account, notebook "GateSense 01 - plate detector
+   training"): background versions queued for hours, so an **interactive** Run All was
+   started at ~21:50 IST on GPU T4 x2 with all five datasets attached. Open
+   kaggle.com/code/akinchanjain7/gatesense-01-plate-detector-training/edit and check the
+   outputs. If the session stopped, run it again interactively. Results land in
+   `/kaggle/working/gatesense_results/` (`plate_detector.onnx`, `detector_comparison.md`
+   and `.json`); download them, put the md/json in `anpr/eval/results/`, run
+   `eval/benchmark_detector.py` on the ONNX, publish the model on a `models-v1` release,
+   fill the README accuracy rows and ADR-0009, and tick the two open items in "Closing the
+   gaps" (follow-up PR from `main`).
+3. **Phase 8 still to do:** `docs/deployment.md` (hosting proposal: one VM running
+   `docker-compose.prod.yml`, Plan A Oracle Always Free Arm 2 OCPU/12 GB, Plan B a small
+   paid VPS; exact owner steps; env var and GitHub secret list), ADR-0014 (Proposed),
+   `docs/learn/phase-8.md`, PR #11 description, merge when green. Hosting waits on the owner.
+4. **Then Phase 9.**
+
 ## Standing rules from the owner
 
 - Commits are authored by **Akinchan Jain**
