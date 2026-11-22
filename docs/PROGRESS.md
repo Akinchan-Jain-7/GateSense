@@ -11,12 +11,12 @@ The agent updates this file at the start and end of every session.
 | 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
 | 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
-| 6 | Frontend (professional UI) | ⚪ Not started | |
+| 6 | Frontend (professional UI) | 🟡 In review | #9 |
 | 7 | Hardening, offline mode, performance | ⚪ Not started | |
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 6 (frontend).
+**Next up:** Phase 7 (hardening, offline mode, performance).
 
 **Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
 `02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
@@ -37,6 +37,32 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 6: Frontend (professional UI)
+
+Branch: `phase-6-frontend`
+
+- [x] Design system: tokens (light + dark), IBM Plex Sans + Devanagari, HSRP plate chip,
+      shadcn-style components on Radix ([docs/design.md](design.md))
+- [x] Typed API client generated from OpenAPI, token refresh, readable errors; CI drift check
+- [x] One shared WebSocket: reconnect with backoff + jitter, query invalidation, catch-up
+- [x] Landing page with one-click demo logins and an architecture diagram; sign-in page
+- [x] Guard console: arrivals with snapshots and plate review, decisions with countdowns,
+      watchlist alerts, call tasks with tap-to-call, inside list, EN / हिन्दी, dark default
+- [x] Resident PWA: approvals (optimistic), guest passes (plate or code), history, Telegram
+- [x] Admin: analytics overview (validated chart palette, table views), flats, residents,
+      vehicles, guards, gates and cameras, watchlist, visits, audit log, gate checks,
+      settings, demo reset
+- [x] Backend: analytics overview + inside-now, audit-log list, demo mode (info + reset),
+      confidence threshold and visitor parking as admin settings, resident contacts on
+      call tasks, 14 days of demo history plus a live "right now" state
+- [x] Tests: Vitest (28), Playwright journeys (resident entry, visitor approval, overstay
+      call task) in a new CI job; backend 479 tests (96% coverage)
+- [x] Screenshots in `docs/assets/`, ADR-0012, `docs/learn/phase-6.md`, api.md
+
+Notes for later phases: the live demo needs the traffic simulator (Phase 8) to keep the
+console busy; a demo reset regenerates camera keys, so the cloud simulator must fetch a key
+after each reset (Phase 8).
 
 ## Phase 5: Escalation, notifications, scheduled jobs
 

@@ -41,6 +41,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/visit\//, /^\/docs/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Scripts the app never shows: browsers fetch them on demand if ever needed.
+        globIgnores: ['**/*-cyrillic*', '**/*-greek*', '**/*-vietnamese*'],
       },
     }),
   ],

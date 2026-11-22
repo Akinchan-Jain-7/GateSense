@@ -70,7 +70,7 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `GET /guest-passes` | ✅ | ✅ | own flats | `active=true` = usable now |
 | `POST /guest-passes/{id}/revoke` | ❌ | ❌ | ✅ | |
 | `POST /guest-passes/redeem` | ✅ | ✅ | ❌ | Guard types a guest's code → visit inside |
-| `GET /settings/visits` | ✅ | ✅ | ❌ | Time limits per category, approval timeout |
+| `GET /settings/visits` | ✅ | ✅ | ❌ | Time limits per category, approval timeout, confidence threshold, visitor parking, retention |
 | `PATCH /settings/visits` | ✅ | ❌ | ❌ | Audited |
 | `POST /telegram/link-code`, `DELETE /telegram/link` | ❌ | ❌ | ✅ | See [telegram.md](telegram.md) |
 | `WS /ws?token=<access token>` | ✅ | ✅ | ✅ | Live events (below) |
@@ -78,12 +78,20 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `POST /escalations/{id}/resolve` | ✅ | ✅ | ❌ | `{"outcome": "reached" \| "not_reached" \| "vehicle_left", "notes": "…"}` |
 | `GET /reconciliation`, `POST /reconciliation/{id}/resolve` | ✅ | ❌ | ❌ | Nightly findings; `resolved=false` |
 | `GET /notifications` | ✅ | ❌ | ❌ | Email/Telegram log with delivery status |
+| `GET /analytics/overview?days=14` | ✅ | ❌ | ❌ | Dashboard numbers (1–90 days, IST): busiest hours, visit length, overstay rate, frequent visitors, inside now, parking |
+| `GET /analytics/inside` | ✅ | ✅ | ❌ | Vehicles on the premises now (the guard console counter) |
+| `GET /audit-logs` | ✅ | ❌ | ❌ | Every admin change, newest first, read-only. Filters: `entity_type`, `actor_id` |
+| `GET /demo` | – | – | – | Public. In demo mode: the demo accounts and password; otherwise `enabled: false` |
+| `POST /demo/reset` | ✅ | ❌ | ❌ | **Demo mode only** (404 otherwise): wipe and reseed with fresh history; signs everyone out |
 | `GET /public/visits/{token}` | – | – | – | **No login**: the visitor's signed link (also `/visit/{token}` as a page) |
 | `GET /health` | – | – | – | Public liveness probe |
 | `GET /ready` | – | – | – | Public readiness probe (checks Postgres and Redis) |
 
-Residents managing their own vehicles, guest passes, approvals and visitor registration
-arrive in Phase 4.
+Escalation tasks include `contacts`: the flat's residents with their phone numbers in
+full, primary contact first, because the guard has to dial them.
+
+The web app's TypeScript types are generated from this API's OpenAPI schema
+(`frontend/openapi.json` → `frontend/src/lib/api/schema.d.ts`); CI fails if they drift.
 Every admin create / update / delete is written to `audit_logs`.
 
 ## Sending a gate event (cameras)

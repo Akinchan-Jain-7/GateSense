@@ -75,6 +75,26 @@ async function tokensFor(role) {
   return { access: data.access_token, refresh: data.refresh_token }
 }
 
+/** A few real admin changes, so the audit log screenshot has entries (local demo data only). */
+async function prepareAuditLog() {
+  const { access } = await tokensFor('admin')
+  const call = (method, path, body) =>
+    fetch(`${base}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then((r) => r.json())
+  await call('POST', '/api/v1/watchlist', {
+    plate: 'UP14DX7788',
+    reason: 'Unpaid parking dues since August; check with the office before letting in',
+  })
+  const vehicles = await call('GET', '/api/v1/vehicles?limit=1')
+  if (vehicles.items?.[0])
+    await call('PATCH', `/api/v1/vehicles/${vehicles.items[0].id}`, { colour: 'Pearl white' })
+  await call('PATCH', '/api/v1/settings/visits', { cab_minutes: 15, visitor_parking_slots: 24 })
+}
+if (!only || only.includes('admin-audit')) await prepareAuditLog()
+
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? 'chrome' })
 for (const shot of SHOTS) {
   if (only && !only.includes(shot.name)) continue
