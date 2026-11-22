@@ -12,14 +12,16 @@ The agent updates this file at the start and end of every session.
 | 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
 | 6 | Frontend (professional UI) | ✅ Done | [#9](https://github.com/Akinchan-Jain-7/GateSense/pull/9) |
-| 7 | Hardening, offline mode, performance | 🟡 In review | #10 |
-| 8 | Docker and deployment | ⚪ Not started | |
+| 7 | Hardening, offline mode, performance | ✅ Done | [#10](https://github.com/Akinchan-Jain-7/GateSense/pull/10) |
+| — | Closing the gaps in Phases 0–7 | 🟡 In progress | `gaps-phase-0-7` |
+| 8 | Docker and deployment | 🟡 Mostly built (draft) | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 8 (Docker and deployment). Needs the owner for hosting accounts.
+**Now:** closing the gaps the owner and agent found in Phases 0–7 (section below), then
+the rest of Phase 8 and Phase 9.
 
-**Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
-`02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
+**Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
+bot token for one real end-to-end test, and a first run of the app on their own machine.
 
 ## Standing rules from the owner
 
@@ -37,6 +39,44 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Closing the gaps in Phases 0–7
+
+Branch: `gaps-phase-0-7`. The owner asked for every known gap in Phases 0–7 to be closed
+before Phase 8 and 9 continue.
+
+- [x] **Plate detector training moved to Kaggle** (owner's account, run by the agent in the
+      owner's browser). Notebook 01 now runs on Kaggle or Colab and needs no API key: four
+      CC0 Kaggle datasets for training, an Apache 2.0 set from a different source as the
+      test set, exact duplicates and pre-cropped plates removed. The dataset builder was
+      tested locally on fake data shaped like each source
+- [ ] Kaggle run finished; real detector numbers in `anpr/eval/results/`, README, ADR-0009
+- [ ] CPU latency of the trained model (`eval/benchmark_detector.py`), model on a
+      `models-v1` release
+- [x] **Accessibility:** axe-core WCAG 2.1 AA checks on 18 screens in both themes, phone
+      width and keyboard-only login (42 checks, in CI). Fixed what it found: `faint` text
+      below 4.5:1, the guard language button's spoken name, a range picker built from tabs
+      without panels; confirm dialogs are now `alertdialog`
+- [x] **Frontend tests:** 36 → 53 tests, line coverage 63% → 81% (admin pages, live
+      connection, guest codes, Telegram linking); CI threshold 55% → 78%
+- [x] **Telegram through the notification outbox** (the Phase 5 follow-up): queued like
+      email, delivered at once, retried with backoff, cancelled when the approval was
+      answered meanwhile. Migration adds `notifications.payload` and the `cancelled` status
+- [x] **Load test with two API workers:** no gain on the 2-vCPU machine (172.5 vs 169.7
+      req/s, 0 failures), explained in `docs/performance.md`
+- [ ] Owner: labelled photos → notebook 02 (OCR comparison); Telegram bot token → one real
+      Telegram test; run the app locally once
+- [ ] Docs, PR, merge
+
+### Notes and deviations
+
+- **Data with a clear licence only.** The largest Indian plate set on Kaggle (15k images)
+  has no stated licence and mixes augmented copies into its test split, so it was not used.
+  The chosen sets are smaller (~700 usable images) but CC0 / Apache 2.0, and the test set
+  is a different source, so the score isn't inflated by near-copies. Of one CC0 set's 2,083
+  images, ~1,900 are already-cropped plates (no use for a detector) and are filtered out.
+- **Kaggle run notes:** a background run can't attach new datasets, so all five were added
+  as notebook inputs first (version 1 failed on exactly that). The GPU queue was long.
 
 ## Phase 7: Hardening, offline mode, performance
 
@@ -117,8 +157,8 @@ Branch: `phase-5-escalation-notifications`
 - New table `reconciliation_flags`; `notifications` gained `subject`, `body_text`, `body_html`,
   `next_attempt_at`; `escalation_tasks.visit_id` is now unique; `society_settings` gained
   `visitor_retention_days`.
-- Telegram approval messages (Phase 4) keep their own idempotent sending; the dispatcher
-  handles email. Moving Telegram onto the same outbox is a small follow-up.
+- Telegram approval messages (Phase 4) kept their own idempotent sending here; they moved
+  onto the same outbox later (see "Closing the gaps in Phases 0–7").
 - The visitor page is server-rendered HTML for now; the React app may restyle it in Phase 6.
 
 ## Phase 4: Visitors, approvals, guest passes, real time
