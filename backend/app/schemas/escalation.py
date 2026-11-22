@@ -8,6 +8,12 @@ from app.schemas.common import WriteModel
 from app.schemas.visit import VisitRead
 
 
+class ResidentContact(BaseModel):
+    name: str
+    phone: str | None = Field(description="In full: the guard has to dial it")
+    is_primary_contact: bool
+
+
 class EscalationRead(BaseModel):
     id: uuid.UUID
     status: EscalationTaskStatus
@@ -17,6 +23,9 @@ class EscalationRead(BaseModel):
     resolved_at: datetime | None
     resolved_by_id: uuid.UUID | None
     visit: VisitRead
+    contacts: list[ResidentContact] = Field(
+        description="Who to call at the flat, primary contact first"
+    )
 
 
 class EscalationResolution(WriteModel):

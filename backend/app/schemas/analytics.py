@@ -51,6 +51,14 @@ class AnalyticsOverview(ReadModel):
     frequent_visitors: list[FrequentVisitorRead]
 
 
+class InsideNowRead(ReadModel):
+    vehicles_inside: int
+    visitors_inside: int
+    residents_inside: int
+    visitor_vehicles_inside: int
+    visitor_parking_slots: int
+
+
 class AuditActor(ReadModel):
     id: uuid.UUID
     full_name: str

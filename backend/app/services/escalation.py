@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings
-from app.models import Approval, EscalationTask, Resident, User, Visit
+from app.models import Approval, EscalationTask, Flat, Resident, User, Visit
 from app.models.enums import (
     ApprovalStatus,
     EscalationOutcome,
@@ -30,7 +30,7 @@ from app.models.enums import (
     VisitStatus,
     VisitTrigger,
 )
-from app.schemas.escalation import EscalationRead
+from app.schemas.escalation import EscalationRead, ResidentContact
 from app.services import emails, notifications, realtime, visitors
 from app.services.errors import ConflictError, NotFoundError
 from app.services.pagination import PageRequest, PageResult, paginate
@@ -191,13 +191,23 @@ def task_read(task: EscalationTask) -> EscalationRead:
         resolved_at=task.resolved_at,
         resolved_by_id=task.resolved_by_id,
         visit=visitors.visit_read(task.visit),
+        contacts=[
+            ResidentContact(
+                name=r.user.full_name, phone=r.user.phone, is_primary_contact=r.is_primary_contact
+            )
+            for r in sorted(task.visit.flat.residents, key=lambda r: not r.is_primary_contact)
+            if r.user.is_active
+        ],
     )
 
 
 def _tasks() -> Select[EscalationTask]:
     return select(EscalationTask).options(
         selectinload(EscalationTask.visit).selectinload(Visit.visitor),
-        selectinload(EscalationTask.visit).selectinload(Visit.flat),
+        selectinload(EscalationTask.visit)
+        .selectinload(Visit.flat)
+        .selectinload(Flat.residents)
+        .selectinload(Resident.user),
     )
 
 

@@ -109,7 +109,6 @@ async def overview(
     db: AsyncSession, settings: Settings, society_id: uuid.UUID, *, now: datetime, days: int
 ) -> Overview:
     since = now - timedelta(days=days)
-    limits = await society_settings.visit_limits(db, settings, society_id)
     in_society = Visit.society_id == society_id
 
     entered = and_(in_society, Visit.entered_at >= since, Visit.entered_at <= now)
@@ -128,37 +127,7 @@ async def overview(
     )
     overstayed = await db.scalar(select(func.count()).where(entered, went_over)) or 0
 
-    inside_visits = and_(in_society, Visit.status.in_(INSIDE_STATUSES))
-    visitors_inside = await db.scalar(select(func.count()).where(inside_visits)) or 0
-    visitor_vehicles = (
-        await db.scalar(
-            select(func.count()).where(inside_visits, Visit.plate_normalized.is_not(None))
-        )
-        or 0
-    )
-
-    # A resident car is inside when its most recent read was at an entry lane. A car parked
-    # at home for a week is normal (reconciliation flags the real gaps, like two entries
-    # in a row), so there is no time window here.
-    latest = (
-        select(GateEvent.direction)
-        .where(
-            GateEvent.society_id == society_id,
-            GateEvent.match_result == MatchResult.RESIDENT,
-            GateEvent.captured_at <= now,
-        )
-        .ext(distinct_on(GateEvent.plate_normalized))
-        .order_by(GateEvent.plate_normalized, GateEvent.captured_at.desc())
-        .subquery()
-    )
-    residents_inside = (
-        await db.scalar(
-            select(func.count())
-            .select_from(latest)
-            .where(latest.c.direction == LaneDirection.ENTRY)
-        )
-        or 0
-    )
+    inside = await inside_now(db, settings, society_id, now=now)
 
     return Overview(
         days=days,
@@ -167,10 +136,10 @@ async def overview(
         average_visit_minutes=round(float(average), 1) if average is not None else None,
         overstayed_visits=overstayed,
         overstay_rate=round(overstayed / visits, 4) if visits else None,
-        visitors_inside=visitors_inside,
-        residents_inside=residents_inside,
-        visitor_vehicles_inside=visitor_vehicles,
-        visitor_parking_slots=limits.visitor_parking_slots,
+        visitors_inside=inside.visitors_inside,
+        residents_inside=inside.residents_inside,
+        visitor_vehicles_inside=inside.visitor_vehicles_inside,
+        visitor_parking_slots=inside.visitor_parking_slots,
         busiest_hours=await _busiest_hours(db, society_id, since, now),
         daily_visits=await _daily_visits(db, society_id, since, now),
         categories=await _categories(db, society_id, since, now),
@@ -275,3 +244,60 @@ async def _frequent_visitors(
         )
         for visitor_id, name, phone, count, last, flats in rows.all()
     ]
+
+
+@dataclass(frozen=True)
+class InsideNow:
+    visitors_inside: int
+    residents_inside: int
+    visitor_vehicles_inside: int
+    visitor_parking_slots: int
+
+    @property
+    def vehicles_inside(self) -> int:
+        return self.visitors_inside + self.residents_inside
+
+
+async def inside_now(
+    db: AsyncSession, settings: Settings, society_id: uuid.UUID, *, now: datetime
+) -> InsideNow:
+    """What's on the premises right now (also shown on the guard console)."""
+    limits = await society_settings.visit_limits(db, settings, society_id)
+    inside_visits = and_(Visit.society_id == society_id, Visit.status.in_(INSIDE_STATUSES))
+    visitors_inside = await db.scalar(select(func.count()).where(inside_visits)) or 0
+    visitor_vehicles = (
+        await db.scalar(
+            select(func.count()).where(inside_visits, Visit.plate_normalized.is_not(None))
+        )
+        or 0
+    )
+
+    # A resident car is inside when its most recent read was at an entry lane. A car parked
+    # at home for a week is normal (reconciliation flags the real gaps, like two entries
+    # in a row), so there is no time window here.
+    latest = (
+        select(GateEvent.direction)
+        .where(
+            GateEvent.society_id == society_id,
+            GateEvent.match_result == MatchResult.RESIDENT,
+            GateEvent.captured_at <= now,
+        )
+        .ext(distinct_on(GateEvent.plate_normalized))
+        .order_by(GateEvent.plate_normalized, GateEvent.captured_at.desc())
+        .subquery()
+    )
+    residents_inside = (
+        await db.scalar(
+            select(func.count())
+            .select_from(latest)
+            .where(latest.c.direction == LaneDirection.ENTRY)
+        )
+        or 0
+    )
+
+    return InsideNow(
+        visitors_inside=visitors_inside,
+        residents_inside=residents_inside,
+        visitor_vehicles_inside=visitor_vehicles,
+        visitor_parking_slots=limits.visitor_parking_slots,
+    )

@@ -1,9 +1,13 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Float, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
+
+if TYPE_CHECKING:
+    from app.models.user import Resident
 
 
 class Society(UUIDPrimaryKey, Timestamps, Base):
@@ -27,6 +31,9 @@ class Flat(UUIDPrimaryKey, Timestamps, Base):
     floor: Mapped[int | None] = mapped_column(SmallInteger)
     # Visitor parking slots reserved for this flat (used by occupancy analytics later).
     parking_slots: Mapped[int] = mapped_column(SmallInteger, default=1)
+
+    # Read-only: residents are added through the Resident model. Used to show who to call.
+    residents: Mapped[list["Resident"]] = relationship(lazy="raise", viewonly=True)
 
     @property
     def label(self) -> str:

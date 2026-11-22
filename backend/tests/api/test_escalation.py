@@ -198,6 +198,10 @@ async def test_guard_resolves_the_call_task(
     ).json()
     assert [t["id"] for t in listing["items"]] == [task_id]
     assert listing["items"][0]["visit"]["flat_label"] == "B-402"
+    # The guard has to phone someone: the flat's residents come with the task.
+    assert listing["items"][0]["contacts"] == [
+        {"name": resident.full_name, "phone": resident.phone, "is_primary_contact": False}
+    ]
 
     response = await client.post(
         f"/api/v1/escalations/{task_id}/resolve",

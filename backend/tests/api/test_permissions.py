@@ -83,6 +83,7 @@ ROUTES = [
     ("POST", f"/api/v1/reconciliation/{ANY_ID}/resolve", {ADMIN}),
     ("GET", "/api/v1/notifications", {ADMIN}),
     ("GET", "/api/v1/analytics/overview", {ADMIN}),
+    ("GET", "/api/v1/analytics/inside", {ADMIN, GUARD}),
     ("GET", "/api/v1/audit-logs", {ADMIN}),
     ("POST", "/api/v1/demo/reset", {ADMIN}),
 ]

@@ -159,6 +159,14 @@ async def test_overview_numbers_match_a_hand_built_scenario(
     await db.commit()
 
     data = await overview(client, admin)
+    inside = await client.get("/api/v1/analytics/inside", headers=auth_headers(admin))
+    assert inside.json() == {
+        "vehicles_inside": 2,
+        "visitors_inside": 1,
+        "residents_inside": 1,
+        "visitor_vehicles_inside": 1,
+        "visitor_parking_slots": 20,
+    }
 
     assert data["visits"] == 3
     assert data["average_visit_minutes"] == 75.0  # (120 + 30) / 2
