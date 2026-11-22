@@ -24,29 +24,25 @@ Phase 9. Phase 8 goes live once the owner picks a host and creates the account (
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
 
-## Handoff (2026-11-23, ~00:35 IST)
+## Handoff (2026-11-23, ~01:10 IST, paused by the owner)
 
-Done this session: Phase 0–7 gaps (#12), Phase 8 merged (#11; images publish to GHCR on
-every green `main`), detector trained on Kaggle with real numbers (this branch,
-`detector-results`), Phase 9 docs started (`phase-9-polish`: architecture, demo script,
-interview guide, PROGRESS plan; not merged yet).
+Merged: #11 (Phase 8), #12 (Phase 0–7 gaps), #13 (detector results). Open: #14
+(`phase-9-polish`: README rewrite, architecture, demo script, interview guide, release
+notes draft, Phase 9 study guide; CI green, waiting on the owner's review).
 
 Pick up here:
 
-1. **Merge the detector results PR** (`detector-results`) when CI is green.
-2. **Get the trained model file.** Owner approved (2026-11-23): download
-   `gatesense_detector_results.zip` from the Kaggle notebook "GateSense 01 - plate detector
-   training" (Output panel, `/kaggle/working`), measure CPU latency with
-   `eval/benchmark_detector.py`, and publish `plate_detector.onnx` as the public GitHub
-   Release `models-v1`. SHA-256 `bfa78f77a95cba2bdbe24914370d0881cf3d2ae91c009643904319d2b19dae9f`.
-   The built-in browser's download didn't land in `C:\Users\akinc\Downloads` (access to
-   that folder is granted for the session). If the interactive session's files are gone,
-   rerun the notebook interactively (~45 min; background versions queue for hours), or ask
-   the owner to download the zip into Downloads.
-3. **Phase 9:** rebase `phase-9-polish` on `main`, rewrite the README recruiter-first
-   (results now include the detector), badges, release notes, tag `v1.0.0` after the
-   owner's review.
-4. **Owner:** pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram
+1. **Model file.** The first Kaggle session's files were lost when it timed out. A rerun
+   was started 2026-11-23 ~00:45 IST from the notebook editor's console
+   (`jupyter nbconvert --execute` on the `main` copy of notebook 01, writing to
+   `/kaggle/working/gatesense_results`). If that session is gone too, rerun it. Downloads
+   from the built-in browser do work: they land in `C:\Users\akinc\Downloads` as a
+   `<uuid>.tmp` file. Then: check the zip, update `detector_comparison.*`, README, ADR-0009
+   and the release notes **if the new run's numbers differ** (training isn't bit-exact),
+   run `eval/benchmark_detector.py` on the trained model, publish `plate_detector.onnx` as
+   release `models-v1` (owner approved).
+2. **Phase 9:** owner reviews #14, then merge; tag `v1.0.0` after "tag it".
+3. **Owner:** pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram
    bot token, record the demo video (docs/demo-script.md).
 
 ## Standing rules from the owner
