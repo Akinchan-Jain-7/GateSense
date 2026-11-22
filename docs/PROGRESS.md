@@ -15,7 +15,7 @@ The agent updates this file at the start and end of every session.
 | 7 | Hardening, offline mode, performance | ✅ Done | [#10](https://github.com/Akinchan-Jain-7/GateSense/pull/10) |
 | — | Closing the gaps in Phases 0–7 | ✅ Merged (detector numbers pending the Kaggle run) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
 | 8 | Docker and deployment | 🟡 Mostly built (draft) | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
-| 9 | Polish, docs, release | ⚪ Not started | |
+| 9 | Polish, docs, release | 🟡 In progress | `phase-9-polish` |
 
 **Now:** the detector results from Kaggle (follow-up PR), then the rest of Phase 8 and
 Phase 9. Phase 8 goes live once the owner picks a host and creates the account (see
@@ -100,6 +100,22 @@ Branch: `phase-8-deployment`
   production images were built and tested by the `compose-prod` CI job on GitHub's runners.
 - **Simulator speed:** `SIM_SPEED` compresses only the simulator's own clock. The server's
   timers (approval timeout, visit limits) run in real time, so the live demo uses speed 1.
+
+## Phase 9: Polish, docs, release
+
+Branch: `phase-9-polish`
+
+- [x] `docs/architecture.md`: components, plate read → visit, state machine, jobs, real
+      time, security (diagrams in Mermaid)
+- [x] `docs/demo-script.md`: 90-second video script
+- [x] `docs/learn/INTERVIEW_GUIDE.md`: pitch, whiteboard walkthrough, 10 hard questions,
+      what I'd do differently
+- [x] `docs/api.md` checked against the OpenAPI schema: every route is listed
+- [ ] README rewritten recruiter-first, with the detector results (after the Kaggle run)
+- [ ] Badges: CI, coverage, licence, live demo (live demo once deployed)
+- [ ] Review the 4 moderate `npm audit` findings (dev-only dependencies)
+- [ ] Release notes and tag `v1.0.0` (after the owner's review; going live can follow)
+- [ ] Owner: record the demo video and GIF (`docs/demo-script.md`)
 
 ## Closing the gaps in Phases 0–7
 
