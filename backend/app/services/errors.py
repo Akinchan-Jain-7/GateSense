@@ -26,3 +26,11 @@ class InvalidInputError(ServiceError):
 
 class AuthenticationError(ServiceError):
     """Wrong credentials or a bad/expired/revoked token. → 401"""
+
+
+class RateLimitedError(ServiceError):
+    """Too many requests from one client in a short time. → 429 with Retry-After"""
+
+    def __init__(self, message: str, retry_after: int) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

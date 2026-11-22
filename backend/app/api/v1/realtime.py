@@ -15,6 +15,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from app.api.deps import AppSettings, DbSession, RedisClient
+from app.core import metrics
 from app.core.security import InvalidTokenError, decode_token
 from app.models import User
 from app.models.enums import UserRole
@@ -70,6 +71,7 @@ async def live_updates(
     await db.commit()  # give the DB connection back: this socket may stay open for hours
 
     await websocket.accept()
+    metrics.websocket_connections.inc()
     await websocket.send_text(json.dumps({"type": "hello", "data": {"role": role}}))
     tasks = [
         asyncio.create_task(_forward(websocket, redis, channels)),
@@ -78,6 +80,7 @@ async def live_updates(
     try:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     finally:
+        metrics.websocket_connections.dec()
         for task in tasks:
             task.cancel()
         for task in tasks:

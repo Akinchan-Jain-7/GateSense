@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     # --- API ---
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:5173"]
+
+    # --- Hardening (Phase 7) ---
+    # Largest request body, except camera uploads (which get snapshot_max_bytes + 64 KB).
+    max_request_bytes: int = Field(default=1_048_576, ge=1024)
+    # Per minute. Login: per client IP and per account (slows down password guessing).
+    login_rate_limit_per_ip: int = Field(default=20, ge=1)
+    login_rate_limit_per_account: int = Field(default=10, ge=1)
+    # Per minute, per camera key: a real camera sends a few reads a minute.
+    device_rate_limit: int = Field(default=600, ge=1)
+    # If set, GET /metrics needs "Authorization: Bearer <token>". Set it in production.
+    metrics_token: SecretStr | None = None
     default_page_size: int = Field(default=20, ge=1)
     max_page_size: int = Field(default=100, ge=1)
 

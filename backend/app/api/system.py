@@ -1,4 +1,4 @@
-"""Liveness and readiness probes.
+"""Liveness and readiness probes, and Prometheus metrics.
 
 - `/health` (liveness): "is the process alive?" Never touches other services, so a
   database outage doesn't make the platform restart a healthy API process.
@@ -8,13 +8,16 @@
 
 import asyncio
 import logging
+import secrets
 from typing import Literal
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from app.api.deps import DbSession, RedisClient, get_redis
+from app.api.deps import AppSettings, DbSession, RedisClient, get_redis
+from app.core import metrics
 
 __all__ = ["get_redis", "router"]  # get_redis is re-exported for tests
 
@@ -59,3 +62,17 @@ async def ready(response: Response, db: DbSession, redis: RedisClient) -> Readin
     if not is_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return ReadinessResponse(status="ready" if is_ready else "not_ready", checks=checks)
+
+
+@router.get("/metrics", include_in_schema=False)
+async def prometheus_metrics(
+    settings: AppSettings, authorization: str | None = Header(default=None)
+) -> Response:
+    """Prometheus scrape endpoint. Needs `Authorization: Bearer <METRICS_TOKEN>` when a
+    token is configured (production); open otherwise (local development)."""
+    token = settings.metrics_token.get_secret_value() if settings.metrics_token else ""
+    if token:  # an empty METRICS_TOKEN= (copied from .env.example) means "not set"
+        expected = f"Bearer {token}"
+        if not secrets.compare_digest((authorization or "").encode(), expected.encode()):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Metrics token required")
+    return Response(generate_latest(metrics.registry), media_type=CONTENT_TYPE_LATEST)

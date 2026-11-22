@@ -11,6 +11,8 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.request_context import RequestIdFilter
+
 # Attributes every LogRecord has; anything else was passed via `extra={...}`.
 _STANDARD_ATTRS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 
@@ -35,6 +37,7 @@ class JsonFormatter(logging.Formatter):
 def configure_logging(level: str = "INFO") -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
+    handler.addFilter(RequestIdFilter())  # every line logged during a request gets its id
 
     root = logging.getLogger()
     root.handlers = [handler]

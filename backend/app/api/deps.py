@@ -15,11 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import HTTPConnection
 
 from app.core.config import Settings, get_settings
-from app.core.security import InvalidTokenError, decode_token
+from app.core.security import InvalidTokenError, decode_token, hash_api_key
 from app.db.session import get_db
 from app.models import Device, User
 from app.models.enums import UserRole
 from app.services import gates as gates_service
+from app.services import rate_limit
 from app.services.pagination import PageRequest
 from app.services.storage import SnapshotStorage
 from app.services.telegram import TelegramBot
@@ -118,10 +119,18 @@ ResidentUser = Annotated[User, Depends(require_roles(UserRole.RESIDENT))]
 
 
 async def get_current_device(
-    db: DbSession, api_key: Annotated[str | None, Security(device_key_header)]
+    db: DbSession,
+    redis: RedisClient,
+    settings: AppSettings,
+    api_key: Annotated[str | None, Security(device_key_header)],
 ) -> Device:
     if api_key is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Missing X-Device-Key header")
+    # Counted per key (its hash), before checking it: a runaway or stolen camera key is
+    # slowed down whether or not the key is valid.
+    await rate_limit.hit(
+        redis, "device", hash_api_key(api_key)[:16], limit=settings.device_rate_limit
+    )
     return await gates_service.authenticate_device(db, api_key)
 
 

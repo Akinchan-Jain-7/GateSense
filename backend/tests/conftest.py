@@ -119,6 +119,11 @@ async def db(connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 async def redis_client() -> AsyncIterator[Redis]:
     client = Redis.from_url(get_settings().redis_url, socket_connect_timeout=2)
+    # Rate-limit counters are per minute and the suite logs in hundreds of times from one
+    # "IP": start every test with clean counters.
+    keys = [key async for key in client.scan_iter("ratelimit:*")]
+    if keys:
+        await client.delete(*keys)
     yield client
     await client.aclose()
 
