@@ -24,27 +24,30 @@ Phase 9. Phase 8 goes live once the owner picks a host and creates the account (
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
 
-## Handoff (end of session, 2026-11-22 22:05 IST)
+## Handoff (2026-11-23, ~00:35 IST)
 
-Pick up here in the next session:
+Done this session: Phase 0–7 gaps (#12), Phase 8 merged (#11; images publish to GHCR on
+every green `main`), detector trained on Kaggle with real numbers (this branch,
+`detector-results`), Phase 9 docs started (`phase-9-polish`: architecture, demo script,
+interview guide, PROGRESS plan; not merged yet).
 
-1. **PR #11 (Phase 8):** 8 of 9 CI checks green after merging main (#12). The secret scan
-   failed on a false positive (`METRICS_TOKEN=` empty in `.env.prod.example`); fixed with a
-   fingerprint in `.gitleaksignore`, and the scan is green again.
-2. **Kaggle detector training** (owner's account, notebook "GateSense 01 - plate detector
-   training"): background versions queued for hours, so an **interactive** Run All was
-   started at ~21:50 IST on GPU T4 x2 with all five datasets attached. Open
-   kaggle.com/code/akinchanjain7/gatesense-01-plate-detector-training/edit and check the
-   outputs. If the session stopped, run it again interactively. Results land in
-   `/kaggle/working/gatesense_results/` (`plate_detector.onnx`, `detector_comparison.md`
-   and `.json`); download them, put the md/json in `anpr/eval/results/`, run
-   `eval/benchmark_detector.py` on the ONNX, publish the model on a `models-v1` release,
-   fill the README accuracy rows and ADR-0009, and tick the two open items in "Closing the
-   gaps" (follow-up PR from `main`).
-3. **Phase 8:** `docs/deployment.md`, ADR-0014 (Proposed) and `docs/learn/phase-8.md` are
-   written. Left: the PR #11 description, merge when green. Going live waits on the owner
-   (host choice and account, then the steps in `docs/deployment.md`).
-4. **Then Phase 9.**
+Pick up here:
+
+1. **Merge the detector results PR** (`detector-results`) when CI is green.
+2. **Get the trained model file.** Owner approved (2026-11-23): download
+   `gatesense_detector_results.zip` from the Kaggle notebook "GateSense 01 - plate detector
+   training" (Output panel, `/kaggle/working`), measure CPU latency with
+   `eval/benchmark_detector.py`, and publish `plate_detector.onnx` as the public GitHub
+   Release `models-v1`. SHA-256 `bfa78f77a95cba2bdbe24914370d0881cf3d2ae91c009643904319d2b19dae9f`.
+   The built-in browser's download didn't land in `C:\Users\akinc\Downloads` (access to
+   that folder is granted for the session). If the interactive session's files are gone,
+   rerun the notebook interactively (~45 min; background versions queue for hours), or ask
+   the owner to download the zip into Downloads.
+3. **Phase 9:** rebase `phase-9-polish` on `main`, rewrite the README recruiter-first
+   (results now include the detector), badges, release notes, tag `v1.0.0` after the
+   owner's review.
+4. **Owner:** pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram
+   bot token, record the demo video (docs/demo-script.md).
 
 ## Standing rules from the owner
 
