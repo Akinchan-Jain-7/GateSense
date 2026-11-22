@@ -69,8 +69,8 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 
 | Metric | Value |
 |---|---|
-| Plate detection mAP@0.5 | TBD (pending the Phase 3 Colab training run) |
-| End-to-end plate accuracy | TBD (pending the Phase 3 Colab runs) |
+| Plate detection, YOLOv8n, on 354 photos from a **separate** dataset (Gujarat) | mAP@0.5 **0.745**, mAP@0.5:0.95 0.384, recall 0.87, precision 0.67 (validation: 0.848 / 0.598); trained on 453 openly licensed images ([details](anpr/eval/results/detector_comparison.md)) |
+| OCR and end-to-end plate accuracy per condition (day / night / rain / two-wheeler) | TBD (needs labelled local photos: notebook 02, `anpr/DATASET.md`) |
 | Plate detector latency on CPU (YOLOv8n, 1280x720) | 65 ms FP32 · 32 ms INT8 static, 2-core build machine ([details](anpr/eval/results/detector_latency.md)) |
 | Gate-event ingestion, one API process, 40 simulated cameras | 159 req/s, p95 410 ms; first bottleneck fixed: +30% (80 vehicles), +58% (500 vehicles) ([method and numbers](docs/performance.md)) |
 | Test coverage (enforced in CI) | backend 96% (499+ tests, min 90%), ANPR 87% (min 80%), frontend 81% lines (53 tests, min 78%) + 3 Playwright journeys + 42 automated WCAG 2.1 AA checks |

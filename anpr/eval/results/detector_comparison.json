@@ -1,0 +1,111 @@
+{
+  "dataset": "public Kaggle datasets (CC0 / Apache 2.0), test set from a separate source",
+  "platform": "Kaggle",
+  "gpu": "GPU 0: Tesla T4 (UUID: GPU-332d4afe-11fc-e03d-02ed-228c21547f99)\nGPU 1: Tesla T4 (UUID: GPU-c43ec61e-3d92-5dca-461c-30947c45e7d0)",
+  "splits": {
+    "train": 453,
+    "valid": 52,
+    "test": 354
+  },
+  "sources": [
+    {
+      "source": "deepakat002/indian-vehicle-number-plate-yolo-annotation",
+      "licence": "CC0-1.0",
+      "role": "trainval",
+      "found": 160,
+      "kept": 160,
+      "duplicates": 0,
+      "plate_crops": 0,
+      "no_boxes": 0,
+      "voc_classes": {}
+    },
+    {
+      "source": "kedarsai/indian-license-plates-with-labels",
+      "licence": "CC0-1.0",
+      "role": "trainval",
+      "found": 2021,
+      "kept": 183,
+      "duplicates": 919,
+      "plate_crops": 919,
+      "no_boxes": 0,
+      "voc_classes": {}
+    },
+    {
+      "source": "tkm22092/indian-number-plate-images",
+      "licence": "CC0-1.0",
+      "role": "trainval",
+      "found": 115,
+      "kept": 115,
+      "duplicates": 0,
+      "plate_crops": 0,
+      "no_boxes": 0,
+      "voc_classes": {}
+    },
+    {
+      "source": "dataclusterlabs/indian-number-plates-dataset",
+      "licence": "CC0-1.0",
+      "role": "trainval",
+      "found": 47,
+      "kept": 47,
+      "duplicates": 0,
+      "plate_crops": 0,
+      "no_boxes": 0,
+      "voc_classes": {
+        "number_plate": 52
+      }
+    },
+    {
+      "source": "paneraghanshyam/gujarat-vehicle-number-plates-yolo-ready",
+      "licence": "Apache-2.0",
+      "role": "test",
+      "found": 355,
+      "kept": 354,
+      "duplicates": 1,
+      "plate_crops": 0,
+      "no_boxes": 0,
+      "voc_classes": {}
+    }
+  ],
+  "results": [
+    {
+      "model": "yolov8n_plate",
+      "eval_split": "test",
+      "eval_images": 354,
+      "map50": 0.745,
+      "map50_95": 0.3836,
+      "precision": 0.667,
+      "recall": 0.8659,
+      "val": {
+        "map50": 0.8477,
+        "map50_95": 0.5976,
+        "precision": 0.9167,
+        "recall": 0.7945
+      },
+      "train_minutes": 8.2,
+      "epochs": 60,
+      "onnx": "/tmp/gatesense/runs/yolov8n_plate/weights/best.onnx",
+      "onnx_mb": 12.8
+    },
+    {
+      "model": "yolov8s_plate",
+      "eval_split": "test",
+      "eval_images": 354,
+      "map50": 0.7615,
+      "map50_95": 0.3428,
+      "precision": 0.7023,
+      "recall": 0.9026,
+      "val": {
+        "map50": 0.8667,
+        "map50_95": 0.6233,
+        "precision": 0.9629,
+        "recall": 0.8037
+      },
+      "train_minutes": 8.4,
+      "epochs": 60,
+      "onnx": "/tmp/gatesense/runs/yolov8s_plate/weights/best.onnx",
+      "onnx_mb": 44.7
+    }
+  ],
+  "chosen": "yolov8n_plate",
+  "sha256": "bfa78f77a95cba2bdbe24914370d0881cf3d2ae91c009643904319d2b19dae9f"
+}
