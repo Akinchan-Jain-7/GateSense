@@ -18,20 +18,51 @@ const SHOTS = [
   { name: 'landing-mobile', role: null, path: '/', width: 375, height: 812, fullPage: false },
   { name: 'login', role: null, path: '/login', width: 1280, height: 800 },
   { name: 'guard-console', role: 'guard', path: '/guard', width: 1440, height: 900 },
-  { name: 'guard-console-hindi', role: 'guard', path: '/guard', width: 1440, height: 900, lang: 'hi' },
+  {
+    name: 'guard-console-hindi',
+    role: 'guard',
+    path: '/guard',
+    width: 1440,
+    height: 900,
+    lang: 'hi',
+  },
   { name: 'guard-console-mobile', role: 'guard', path: '/guard', width: 390, height: 844 },
   { name: 'resident-approvals', role: 'resident', path: '/resident', width: 390, height: 844 },
   { name: 'resident-passes', role: 'resident', path: '/resident/passes', width: 390, height: 844 },
-  { name: 'resident-history', role: 'resident', path: '/resident/history', width: 390, height: 844 },
-  { name: 'admin-overview', role: 'admin', path: '/admin', width: 1440, height: 1000, fullPage: true },
-  { name: 'admin-overview-dark', role: 'admin', path: '/admin', width: 1440, height: 1000, theme: 'dark' },
+  {
+    name: 'resident-history',
+    role: 'resident',
+    path: '/resident/history',
+    width: 390,
+    height: 844,
+  },
+  {
+    name: 'admin-overview',
+    role: 'admin',
+    path: '/admin',
+    width: 1440,
+    height: 1000,
+    fullPage: true,
+  },
+  {
+    name: 'admin-overview-dark',
+    role: 'admin',
+    path: '/admin',
+    width: 1440,
+    height: 1000,
+    theme: 'dark',
+  },
   { name: 'admin-vehicles', role: 'admin', path: '/admin/vehicles', width: 1440, height: 900 },
   { name: 'admin-watchlist', role: 'admin', path: '/admin/watchlist', width: 1440, height: 900 },
   { name: 'admin-audit', role: 'admin', path: '/admin/audit', width: 1440, height: 900 },
   { name: 'admin-settings', role: 'admin', path: '/admin/settings', width: 1440, height: 900 },
   { name: 'admin-tablet', role: 'admin', path: '/admin', width: 768, height: 1024 },
 ]
-const EMAIL = { guard: 'guard@example.com', resident: 'resident@example.com', admin: 'admin@example.com' }
+const EMAIL = {
+  guard: 'guard@example.com',
+  resident: 'resident@example.com',
+  admin: 'admin@example.com',
+}
 
 async function tokensFor(role) {
   const response = await fetch(`${base}/api/v1/auth/login`, {

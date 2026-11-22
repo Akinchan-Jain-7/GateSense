@@ -2,3 +2,9 @@ dist
 coverage
 node_modules
 package-lock.json
+dev-dist
+playwright-report
+test-results
+# Generated from the backend (npm run api:types): compared byte for byte in CI.
+openapi.json
+src/lib/api/schema.d.ts
