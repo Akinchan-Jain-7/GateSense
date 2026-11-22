@@ -1,0 +1,14 @@
+{
+  "label": "after-500",
+  "requests_per_second": 98.0,
+  "p50_ms": 360.0,
+  "p95_ms": 720.0,
+  "p99_ms": 1000.0,
+  "failures": 0,
+  "requests": 11558,
+  "runs_rps": [
+    96.0,
+    98.0,
+    102.2
+  ]
+}

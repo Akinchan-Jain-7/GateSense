@@ -4,7 +4,7 @@ A device's API key is generated here and returned once; only its hash is stored.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,6 +154,9 @@ async def delete_device(db: AsyncSession, actor: User, device_id: uuid.UUID) -> 
     await db.commit()
 
 
+LAST_SEEN_RESOLUTION = timedelta(minutes=1)
+
+
 async def authenticate_device(db: AsyncSession, api_key: str) -> Device:
     """Find the active device for an API key (sent by cameras in `X-Device-Key`).
 
@@ -171,6 +174,11 @@ async def authenticate_device(db: AsyncSession, api_key: str) -> Device:
     )
     if device is None:
         raise AuthenticationError("Invalid or inactive device API key")
-    device.last_seen_at = datetime.now(UTC)
-    await db.commit()
+    # "Last seen" only needs minute precision. Writing it on every read cost an UPDATE and
+    # a commit per plate, all on the same few device rows; the Phase 7 load test showed it
+    # was the first bottleneck (docs/performance.md).
+    now = datetime.now(UTC)
+    if device.last_seen_at is None or now - device.last_seen_at >= LAST_SEEN_RESOLUTION:
+        device.last_seen_at = now
+        await db.commit()
     return device

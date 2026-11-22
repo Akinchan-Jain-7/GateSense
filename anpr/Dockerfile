@@ -24,5 +24,10 @@ COPY gatesense_anpr ./gatesense_anpr
 COPY eval ./eval
 RUN uv sync --frozen --no-dev ${OCR_EXTRA:+--extra $OCR_EXTRA}
 
+# Offline mode: reads that can't be delivered wait here. Mount a volume on /data so they
+# survive a container restart: docker run -v anpr-buffer:/data ...
+ENV ANPR_BUFFER_PATH=/data/offline-buffer.sqlite3
+VOLUME ["/data"]
+
 # Default: a simulated camera (no model needed). Override the command for a real source.
 CMD ["gatesense-anpr", "--simulate", "1000", "--realtime", "--interval", "5"]

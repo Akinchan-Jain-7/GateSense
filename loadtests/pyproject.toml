@@ -1,0 +1,12 @@
+[project]
+name = "gatesense-loadtests"
+version = "0.1.0"
+description = "Locust load tests for GateSense gate-event ingestion"
+requires-python = ">=3.12"
+dependencies = [
+    "locust>=2.40",
+    "psycopg[binary]>=3.2",
+]
+
+[tool.uv]
+package = false

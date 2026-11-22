@@ -41,6 +41,17 @@ All settings are `ANPR_*` environment variables (or `anpr/.env`); see
 `gatesense_anpr/config.py`: API URL, device key, model path, OCR engine, detector
 thresholds, frames per second to analyse, tracker timings, retries.
 
+## Offline mode
+
+If the API can't be reached (internet down, server restarting), reads aren't lost. They
+wait in a SQLite file (`ANPR_BUFFER_PATH`, default `anpr/data/offline-buffer.sqlite3`,
+`/data/offline-buffer.sqlite3` in Docker; mount a volume there) and are sent in the
+order they happened once the API is back. New reads queue behind older ones, so the
+server never sees an exit before its entry. Retries back off from 5 seconds to 5 minutes.
+Sending twice is safe: the server stores each read once. A read the server rejects for
+good (invalid data) is moved to a `rejected` table so it can't block the queue. Set
+`ANPR_BUFFER_PATH=` (empty) to turn the buffer off. Details: `gatesense_anpr/buffer.py`.
+
 ## Models and data
 
 - Weights and datasets **never go in git** (`anpr/models/`, `anpr/data/` are ignored).

@@ -34,3 +34,9 @@ def make_constant_onnx(path: Path, output: np.ndarray, input_size: int = 640) ->
     model.ir_version = 9
     onnx.save(model, path)
     return path
+
+
+@pytest.fixture(autouse=True)
+def _offline_buffer_in_tmp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Never let a test write the real offline buffer under anpr/data/."""
+    monkeypatch.setenv("ANPR_BUFFER_PATH", str(tmp_path / "buffer.sqlite3"))

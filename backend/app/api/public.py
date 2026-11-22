@@ -1,5 +1,7 @@
 """Pages and endpoints that need no login: the visitor's "time remaining" link."""
 
+import base64
+import hashlib
 import json
 from datetime import UTC, datetime
 from html import escape
@@ -67,9 +69,7 @@ async def visitor_page(token: str, db: DbSession, settings: AppSettings) -> HTML
     try:
         view = await _visitor_view(db, settings, token)
     except HTTPException:
-        return HTMLResponse(
-            _page("Link expired", "<p>This link is no longer valid.</p>", None), status_code=404
-        )
+        return _html("Link expired", "<p>This link is no longer valid.</p>", None, 404)
     hello = f"Hi {escape(view.first_name)}, you" if view.first_name else "You"
     if view.seconds_remaining is None:
         state = view.status.value.replace("_", " ")
@@ -81,7 +81,7 @@ async def visitor_page(token: str, db: DbSession, settings: AppSettings) -> HTML
             '<p class="big" id="left">…</p><p id="note">time remaining</p>'
         )
         deadline = view.expected_exit_at.isoformat() if view.expected_exit_at else None
-    return HTMLResponse(_page("Your visit", body, deadline))
+    return _html("Your visit", body, deadline)
 
 
 STYLE = """
@@ -106,8 +106,26 @@ tick(); setInterval(tick, 30000);
 """
 
 
-def _page(title: str, body: str, deadline: str | None) -> str:
-    script = f"<script>{COUNTDOWN % json.dumps(deadline)}</script>" if deadline else ""
+def _csp_hash(source: str) -> str:
+    return "'sha256-" + base64.b64encode(hashlib.sha256(source.encode()).digest()).decode() + "'"
+
+
+def _html(title: str, body: str, deadline: str | None, status_code: int = 200) -> HTMLResponse:
+    """The visitor page with a Content-Security-Policy that allows exactly its own inline
+    style and script (by hash) and nothing else: no other scripts, no external loads."""
+    script = COUNTDOWN % json.dumps(deadline) if deadline else None
+    csp = f"default-src 'none'; style-src {_csp_hash(STYLE)}; frame-ancestors 'none'"
+    if script:
+        csp += f"; script-src {_csp_hash(script)}"
+    return HTMLResponse(
+        _page(title, body, script),
+        status_code=status_code,
+        headers={"Content-Security-Policy": csp},
+    )
+
+
+def _page(title: str, body: str, script_source: str | None) -> str:
+    script = f"<script>{script_source}</script>" if script_source else ""
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"

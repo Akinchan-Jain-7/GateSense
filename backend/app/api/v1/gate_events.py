@@ -13,6 +13,7 @@ from app.api.deps import (
     SnapshotStore,
     StaffUser,
 )
+from app.core import metrics
 from app.models.enums import LaneDirection, MatchResult
 from app.schemas.common import Page
 from app.schemas.gate_event import GateEventIngestResponse, GateEventRead, ReviewDecision
@@ -81,6 +82,8 @@ async def ingest_gate_event(
         snapshot=data,
     )
     result = await service.ingest_read(db, redis, storage, settings, device, read)
+    match = result.event.match_result.value if result.event else "none"
+    metrics.gate_events.labels(result.status, match).inc()
     if result.status != "created":
         response.status_code = status.HTTP_200_OK
     event = GateEventRead.model_validate(result.event) if result.event else None

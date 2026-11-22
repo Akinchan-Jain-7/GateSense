@@ -160,7 +160,7 @@ export interface paths {
          * @description Log in with email (in the `username` field) and password.
          *
          *     Sent as a form (OAuth2 password flow), which is what the **Authorize** button in
-         *     `/docs` uses.
+         *     `/docs` uses. Rate-limited per client IP and per account (429 + Retry-After).
          */
         post: operations["login_api_v1_auth_login_post"];
         delete?: never;

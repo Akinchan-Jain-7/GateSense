@@ -8,6 +8,7 @@ from app.services.errors import (
     ConflictError,
     InvalidInputError,
     NotFoundError,
+    RateLimitedError,
     ServiceError,
 )
 
@@ -16,6 +17,7 @@ _STATUS_CODES: dict[type[ServiceError], int] = {
     ConflictError: status.HTTP_409_CONFLICT,
     InvalidInputError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     AuthenticationError: status.HTTP_401_UNAUTHORIZED,
+    RateLimitedError: status.HTTP_429_TOO_MANY_REQUESTS,
 }
 
 
@@ -27,6 +29,8 @@ async def _handle_service_error(request: Request, exc: Exception) -> JSONRespons
         status.HTTP_400_BAD_REQUEST,
     )
     headers = {"WWW-Authenticate": "Bearer"} if code == status.HTTP_401_UNAUTHORIZED else None
+    if isinstance(exc, RateLimitedError):
+        headers = {"Retry-After": str(exc.retry_after)}
     return JSONResponse(status_code=code, content={"detail": exc.message}, headers=headers)
 
 

@@ -32,3 +32,6 @@ class AnprSettings(BaseSettings):
 
     request_timeout_seconds: float = Field(default=10.0, gt=0)
     max_retries: int = Field(default=4, ge=0)
+    # Offline mode: undeliverable reads wait here and are sent in order later.
+    # An empty value turns the buffer off (reads that can't be sent are then dropped).
+    buffer_path: Path | None = ANPR_DIR / "data" / "offline-buffer.sqlite3"

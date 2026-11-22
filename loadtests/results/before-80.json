@@ -1,0 +1,14 @@
+{
+  "label": "before-80",
+  "requests_per_second": 114.5,
+  "p50_ms": 290.0,
+  "p95_ms": 600.0,
+  "p99_ms": 800.0,
+  "failures": 0,
+  "requests": 13343,
+  "runs_rps": [
+    112.9,
+    114.5,
+    114.5
+  ]
+}

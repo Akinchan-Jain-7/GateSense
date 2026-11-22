@@ -1,11 +1,10 @@
 """GateSense API entry point: builds the FastAPI app and wires everything together."""
 
 import logging
-import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
@@ -15,6 +14,11 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.event_loop import check_running_loop
 from app.core.logging import configure_logging
+from app.core.middleware import (
+    BodySizeLimitMiddleware,
+    RequestContextMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.db.session import engine
 from app.services.storage import build_snapshot_storage
 from app.services.telegram import build_bot
@@ -49,30 +53,25 @@ def create_app() -> FastAPI:
         description="AI-powered society gate and visitor management.",
         lifespan=lifespan,
     )
+    # Middleware runs outermost-last-added: request context wraps everything, so even a
+    # 413 from the size limit gets a request id, a log line and a metric.
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        default_limit=settings.max_request_bytes,
+        upload_limit=settings.snapshot_max_bytes + 65_536,
+    )
+    # CORS: only the configured web origins, only the methods and headers the app uses.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=False,  # bearer tokens, no cookies
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        expose_headers=["X-Request-ID", "Retry-After"],
+        max_age=600,
     )
-
-    @app.middleware("http")
-    async def log_requests(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        started = time.perf_counter()
-        response = await call_next(request)
-        logger.info(
-            "request",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status": response.status_code,
-                "duration_ms": round((time.perf_counter() - started) * 1000, 1),
-            },
-        )
-        return response
+    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.app_env == "production")
+    app.add_middleware(RequestContextMiddleware)
 
     register_error_handlers(app)
     app.include_router(system.router)

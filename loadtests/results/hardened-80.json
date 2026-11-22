@@ -1,0 +1,14 @@
+{
+  "label": "hardened-80",
+  "requests_per_second": 159.1,
+  "p50_ms": 200.0,
+  "p95_ms": 410.0,
+  "p99_ms": 550.0,
+  "failures": 0,
+  "requests": 18487,
+  "runs_rps": [
+    154.6,
+    160.0,
+    159.1
+  ]
+}
