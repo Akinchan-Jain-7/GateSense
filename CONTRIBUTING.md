@@ -41,6 +41,7 @@ uv run alembic upgrade head                             # create / update the da
 uv run python -m app.seed                               # demo data (first time only)
 uv run uvicorn app.main:app --reload                    # http://localhost:8000/docs
 uv run celery -A app.workers.celery_app worker --loglevel=info  # jobs (Windows: add --pool=solo)
+uv run celery -A app.workers.celery_app beat --loglevel=info    # schedules (one process only)
 
 # 3. Frontend, in a third terminal
 cd frontend && npm run dev                              # http://localhost:5173

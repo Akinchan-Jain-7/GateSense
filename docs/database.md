@@ -36,6 +36,7 @@ erDiagram
   societies ||--o{ visitors : has
   societies ||--o{ audit_logs : has
   societies ||--o| society_settings : configures
+  societies ||--o{ reconciliation_flags : has
 
   users ||--o{ residents : "lives in (as)"
   flats ||--o{ residents : "is home of"
@@ -71,6 +72,14 @@ erDiagram
     string number "402"
     int floor
     int parking_slots
+  }
+  reconciliation_flags {
+    uuid id PK
+    string kind
+    uuid subject_id "event or visit"
+    uuid gate_event_id FK
+    uuid visit_id FK
+    timestamptz resolved_at
   }
   society_settings {
     uuid society_id PK,FK
@@ -285,6 +294,12 @@ marked *(Phase N)* have no API yet.
   timeout an admin set; no row = the defaults from config.
 - **`users.telegram_chat_id`** (unique) links a resident's Telegram chat; **`visits.duration_minutes`**
   is a resident-set duration (service visits) that beats the category limit.
+- **`reconciliation_flags`**: what the nightly check found (exit without entry, entry never
+  closed, visit not closed), unique per (kind, subject) so re-runs don't duplicate; the
+  admin resolves them.
+- **`notifications`** now store the rendered message (`subject`, `body_text`, `body_html`)
+  and `next_attempt_at` for retries; `escalation_tasks.visit_id` is unique (one per visit);
+  `society_settings.visitor_retention_days` sets the privacy purge.
 - **`visit_status_changes`**: the history of every visit, one row per status change (from,
   to, trigger, when, and the user or gate event that caused it). Written in the same
   transaction as the change; never updated.
@@ -297,7 +312,7 @@ marked *(Phase N)* have no API yet.
 
 **Operations**
 
-- **`notifications`** *(Phase 5)*: log of every email / Telegram message. The unique
+- **`notifications`**: log of every email / Telegram message. The unique
   `idempotency_key` guarantees a retried job never sends the same message twice.
 - **`audit_logs`**: one row per admin create / update / delete: who, what, and the changed
   fields as JSON (`{"colour": ["White", "Grey"]}`). Passwords never appear in it.

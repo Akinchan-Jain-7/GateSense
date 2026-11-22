@@ -87,3 +87,49 @@ def send_approval_to_telegram(approval_id: str) -> int:
             await bot.aclose()
 
     return run_job(job)
+
+
+# --- Scheduled jobs (Celery Beat, see celery_app.beat_schedule) ----------------------------
+
+
+@celery_app.task(name="escalation.tick")  # type: ignore[untyped-decorator]
+def escalation_tick() -> dict[str, int]:
+    from app.services import escalation
+
+    async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
+        result = await escalation.run_ladder(db, redis, settings)
+        swept = await escalation.sweep_approvals(db, redis)
+        return {**result.__dict__, "approvals_timed_out": swept}
+
+    return run_job(job)
+
+
+@celery_app.task(name="notifications.dispatch")  # type: ignore[untyped-decorator]
+def dispatch_notifications() -> dict[str, int]:
+    from app.services import notifications
+
+    async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
+        return await notifications.dispatch_due(db, notifications.SmtpMailer(settings), settings)
+
+    return run_job(job)
+
+
+@celery_app.task(name="reconciliation.nightly")  # type: ignore[untyped-decorator]
+def nightly_reconciliation() -> dict[str, int]:
+    from app.services import reconciliation
+
+    async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
+        return await reconciliation.reconcile(db, settings)
+
+    return run_job(job)
+
+
+@celery_app.task(name="retention.daily")  # type: ignore[untyped-decorator]
+def daily_retention() -> dict[str, int]:
+    from app.services import retention
+    from app.services.storage import build_snapshot_storage
+
+    async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
+        return await retention.purge(db, build_snapshot_storage(settings), settings)
+
+    return run_job(job)

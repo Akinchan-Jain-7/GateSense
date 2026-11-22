@@ -67,6 +67,26 @@ class Settings(BaseSettings):
     # How long residents get to answer before the guard decides (default 3 minutes).
     approval_timeout_seconds: int = Field(default=180, ge=10)
 
+    # --- Overstay escalation ladder (minutes after the time limit) ---
+    overstay_reminder_minutes: int = Field(default=30, ge=1)
+    overstay_escalation_minutes: int = Field(default=60, ge=1)
+    # Visitors still "inside" this long after their limit are flagged by reconciliation.
+    reconciliation_stale_hours: int = Field(default=24, ge=1)
+
+    # --- Privacy ---
+    visitor_retention_days: int = Field(default=90, ge=1)
+
+    # --- Email (Mailpit catches everything in development) ---
+    smtp_host: str = "127.0.0.1"
+    smtp_port: int = 1025
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_starttls: bool = False
+    smtp_from: str = "GateSense <noreply@gatesense.local>"
+    # Where visitors' "time remaining" links point (the API's public URL).
+    public_base_url: str = "http://127.0.0.1:8000"
+    notification_max_attempts: int = Field(default=5, ge=1)
+
     # --- Telegram bot (optional; leave the token empty to turn the bot off) ---
     telegram_bot_token: SecretStr | None = None
     telegram_bot_username: str | None = None  # e.g. GateSenseDemoBot, for the deep link

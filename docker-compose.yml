@@ -93,6 +93,9 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -133,6 +136,18 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+
+  # Puts scheduled jobs on the queue: escalation + email dispatch every minute, nightly
+  # reconciliation, daily retention purge. Exactly one beat process may run.
+  beat:
+    build: ./backend
+    command: celery -A app.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    environment: *backend-env
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      worker:
+        condition: service_healthy
 
   frontend:
     build: ./frontend

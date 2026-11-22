@@ -10,13 +10,13 @@ The agent updates this file at the start and end of every session.
 | 2 | Gate event engine | ✅ Done | [#4](https://github.com/Akinchan-Jain-7/GateSense/pull/4) |
 | 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
 | 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
-| 5 | Escalation, notifications, scheduled jobs | ⚪ Not started | |
+| 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
 | 6 | Frontend (professional UI) | ⚪ Not started | |
 | 7 | Hardening, offline mode, performance | ⚪ Not started | |
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 5 (escalation, notifications, scheduled jobs).
+**Next up:** Phase 6 (frontend).
 
 **Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
 `02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
@@ -37,6 +37,36 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 5: Escalation, notifications, scheduled jobs
+
+Branch: `phase-5-escalation-notifications`
+
+- [x] Celery Beat schedule: escalation + email dispatch every minute, approval sweep,
+      nightly reconciliation (03:00 IST), daily retention purge (03:30 IST); `beat` in Compose
+- [x] Escalation ladder: limit → OVERSTAYED + emails; +30 min reminder; +60 min ESCALATED +
+      guard call task; each step exactly once, catches up after downtime
+- [x] Escalation tasks: list, resolve with outcome (reached / not reached / vehicle left);
+      any exit closes the open task
+- [x] Email templates (plain text + HTML, escaped, Indian time) over SMTP (Mailpit in dev)
+- [x] Notification log with rendered messages, idempotency keys, `SKIP LOCKED` dispatcher,
+      exponential backoff, max attempts; admin log endpoint
+- [x] Welcome email with a signed, expiring visitor link + public countdown page
+- [x] Nightly reconciliation flags (exit without entry, entry never closed, visit not closed)
+- [x] Retention purge: visitors, message contents, guest phones, snapshots (per-society days)
+- [x] Time-mocked tests: an overstaying visit goes through every step exactly once
+- [x] Verified live: real Celery worker + Beat + local SMTP server: a 61-minute-overdue visit
+      → OVERSTAYED → ESCALATED (one task), 4 emails queued and delivered over SMTP
+- [x] ADR-0011, `docs/learn/phase-5.md`, api.md, database.md, .env.example
+
+### Notes and deviations
+
+- New table `reconciliation_flags`; `notifications` gained `subject`, `body_text`, `body_html`,
+  `next_attempt_at`; `escalation_tasks.visit_id` is now unique; `society_settings` gained
+  `visitor_retention_days`.
+- Telegram approval messages (Phase 4) keep their own idempotent sending; the dispatcher
+  handles email. Moving Telegram onto the same outbox is a small follow-up.
+- The visitor page is server-rendered HTML for now; the React app may restyle it in Phase 6.
 
 ## Phase 4: Visitors, approvals, guest passes, real time
 

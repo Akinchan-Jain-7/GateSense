@@ -8,11 +8,19 @@ row in the same transaction, so the history can never disagree with the visit.
 import uuid
 from datetime import datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.models import Visit, VisitStatusChange
-from app.models.enums import VisitCategory, VisitStatus, VisitTrigger
+from app.models import EscalationTask, Flat, Visit, Visitor, VisitStatusChange
+from app.models.enums import (
+    EscalationOutcome,
+    EscalationTaskStatus,
+    VisitCategory,
+    VisitStatus,
+    VisitTrigger,
+)
+from app.services import emails, notifications, visit_links
 from app.services.errors import InvalidInputError
 from app.services.society_settings import visit_limits
 from app.services.visit_state import INITIAL_STATUSES, StatusChange, apply_transition
@@ -112,4 +120,42 @@ async def transition_visit(
             note=note,
         )
     )
+    if trigger is VisitTrigger.ENTER:
+        await _welcome_visitor(db, settings, visit)
+    elif trigger is VisitTrigger.EXIT:
+        await _close_escalation(db, visit, at)
     return change
+
+
+async def _welcome_visitor(db: AsyncSession, settings: Settings, visit: Visit) -> None:
+    """Email the visitor their time limit and a link that counts down (if we have an email)."""
+    visitor = await db.get(Visitor, visit.visitor_id) if visit.visitor_id else None
+    if visitor is None or not visitor.email or visit.expected_exit_at is None:
+        return
+    flat = await db.get(Flat, visit.flat_id)
+    link = visit_links.make_link(settings, visit.id, visit.expected_exit_at)
+    await notifications.queue_email(
+        db,
+        society_id=visit.society_id,
+        kind="visit_welcome",
+        to=visitor.email,
+        email=emails.visit_welcome(
+            visitor.full_name, flat.label if flat else "", visit.expected_exit_at, link
+        ),
+        key=f"visit:{visit.id}:visit_welcome:visitor",
+        visit_id=visit.id,
+    )
+
+
+async def _close_escalation(db: AsyncSession, visit: Visit, at: datetime) -> None:
+    """When the camera (or a guard) closes the visit, its open escalation task closes too."""
+    task = await db.scalar(
+        select(EscalationTask).where(
+            EscalationTask.visit_id == visit.id, EscalationTask.status == EscalationTaskStatus.OPEN
+        )
+    )
+    if task is not None:
+        task.status = EscalationTaskStatus.RESOLVED
+        task.outcome = EscalationOutcome.VEHICLE_LEFT
+        task.notes = "Closed automatically: the vehicle was seen leaving"
+        task.resolved_at = at

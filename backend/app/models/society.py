@@ -46,3 +46,5 @@ class SocietySettings(Timestamps, Base):
     cab_minutes: Mapped[int] = mapped_column(Integer)
     service_minutes: Mapped[int] = mapped_column(Integer)
     approval_timeout_seconds: Mapped[int] = mapped_column(Integer)
+    # Visitors' personal data (and plate snapshots) are deleted after this many days.
+    visitor_retention_days: Mapped[int] = mapped_column(Integer, server_default="90")

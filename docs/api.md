@@ -74,6 +74,11 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `PATCH /settings/visits` | ✅ | ❌ | ❌ | Audited |
 | `POST /telegram/link-code`, `DELETE /telegram/link` | ❌ | ❌ | ✅ | See [telegram.md](telegram.md) |
 | `WS /ws?token=<access token>` | ✅ | ✅ | ✅ | Live events (below) |
+| `GET /escalations` | ✅ | ✅ | ❌ | "Call the resident" tasks; `status=open` |
+| `POST /escalations/{id}/resolve` | ✅ | ✅ | ❌ | `{"outcome": "reached" \| "not_reached" \| "vehicle_left", "notes": "…"}` |
+| `GET /reconciliation`, `POST /reconciliation/{id}/resolve` | ✅ | ❌ | ❌ | Nightly findings; `resolved=false` |
+| `GET /notifications` | ✅ | ❌ | ❌ | Email/Telegram log with delivery status |
+| `GET /public/visits/{token}` | – | – | – | **No login**: the visitor's signed link (also `/visit/{token}` as a page) |
 | `GET /health` | – | – | – | Public liveness probe |
 | `GET /ready` | – | – | – | Public readiness probe (checks Postgres and Redis) |
 
@@ -126,4 +131,5 @@ send `ping` to get `{"type": "pong"}`. Every event looks like
 | `approval.requested` | guards, admins, the flat's residents | the approval with its visit |
 | `approval.decided` / `approval.timed_out` | same | the approval with its visit |
 | `visit.updated` | guards, admins, the flat's residents | the visit |
+| `escalation.created` / `escalation.resolved` | guards, admins | the escalation task with its visit |
 
