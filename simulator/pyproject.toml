@@ -1,0 +1,30 @@
+[project]
+name = "gatesense-sim"
+version = "0.1.0"
+description = "Demo traffic for GateSense: residents, visitors, guest passes and overstays, through the real API"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.28", "pillow>=11"]
+
+[project.scripts]
+gatesense-sim = "gatesense_sim.__main__:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-cov>=6", "ruff>=0.14", "mypy>=1.18"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["gatesense_sim"]
+
+[tool.coverage.report]
+fail_under = 80
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["gatesense_sim", "tests"]

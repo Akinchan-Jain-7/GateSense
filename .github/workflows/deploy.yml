@@ -1,0 +1,136 @@
+name: Deploy
+
+# After CI passes on main: build the production images for amd64 and arm64, push them to
+# GitHub Container Registry (GHCR), then update the server, if one is configured.
+#
+# The deploy step needs these repository secrets (Settings > Secrets and variables >
+# Actions). Until they exist, it is skipped and only the images are published.
+#   DEPLOY_HOST         the server's address
+#   DEPLOY_USER         the SSH user on the server
+#   DEPLOY_SSH_KEY      a private key whose public half is in that user's authorized_keys
+#   DEPLOY_KNOWN_HOSTS  the server's host key line(s): ssh-keyscan -t ed25519 <host>
+# and this repository variable (not secret):
+#   DEPLOY_URL          the public URL, e.g. https://203-0-113-7.sslip.io
+# See docs/deployment.md.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false # never stop a deploy halfway
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Build and push images
+    # Only after a green CI run on a push to main (not on PRs from forks).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io/<owner>/...
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: backend, context: backend, target: prod }
+          - { name: frontend, context: frontend, target: prod }
+          - { name: simulator, context: simulator, target: "" }
+          - { name: anpr, context: anpr, target: "" }
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
+      - name: Image name (GHCR names must be lower-case)
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gatesense-${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v4 # runs arm64 build steps on the amd64 runner
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64 # arm64: Oracle's free Ampere VMs, Raspberry Pi
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ env.SHA }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.SHA }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  server:
+    name: Update the server
+    needs: images
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_URL: ${{ vars.DEPLOY_URL }}
+    steps:
+      - name: Skip when no server is configured yet
+        if: env.DEPLOY_HOST == ''
+        run: echo "::notice::No DEPLOY_HOST secret yet; images are published, nothing deployed."
+      - name: SSH setup
+        if: env.DEPLOY_HOST != ''
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          # Pinned host key: refuse to talk to anything pretending to be the server.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Pull the new images and restart
+        if: env.DEPLOY_HOST != ''
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "SHA=$SHA bash -s" <<'EOF'
+          set -euo pipefail
+          cd ~/gatesense
+          # The compose file and Caddyfile come from git; .env.prod stays on the server.
+          git fetch --quiet origin main
+          git checkout --quiet --detach "$SHA"
+          export IMAGE_TAG="$SHA"
+          compose() { docker compose -f docker-compose.prod.yml --env-file .env.prod "$@"; }
+          compose pull --quiet
+          compose up -d --remove-orphans   # runs the migrate step first, then the rest
+          for i in $(seq 1 60); do
+            [ "$(compose ps api --format '{{.Health}}')" = healthy ] && break; sleep 5
+          done
+          compose ps
+          [ "$(compose ps api --format '{{.Health}}')" = healthy ]
+          docker image prune --force --filter "until=168h" > /dev/null
+          echo "deployed $SHA"
+          EOF
+      - name: Check the live site
+        if: env.DEPLOY_HOST != '' && env.DEPLOY_URL != ''
+        run: |
+          for i in $(seq 1 30); do curl -fsS "$DEPLOY_URL/health" && break; sleep 5; done
+          curl -fsS "$DEPLOY_URL/ready"
+          curl -fsS -o /dev/null "$DEPLOY_URL/"

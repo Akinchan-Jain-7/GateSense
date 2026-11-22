@@ -1,0 +1,204 @@
+# GateSense production stack for one server (self-hosting, or the live demo).
+#
+#   cp .env.prod.example .env.prod      # then fill in the values marked REQUIRED
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Only Caddy ("web") is reachable from outside, on ports 80 and 443. Everything else talks
+# over the private Compose network. Images come from GHCR (built by CI on every merge to
+# main); "build:" lets you build them on the server instead (add --build).
+# Step-by-step guide: docs/deployment.md.
+
+name: gatesense
+
+x-logging:
+  &logging # Keep container logs from filling the disk: at most 3 files of 10 MB per service.
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+x-backend: &backend
+  image: ${IMAGE_PREFIX:-ghcr.io/akinchan-jain-7/gatesense}-backend:${IMAGE_TAG:-latest}
+  build: { context: ./backend, target: prod }
+  restart: unless-stopped
+  logging: *logging
+  environment: &backend-env
+    APP_ENV: production
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gatesense}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}@postgres:5432/${POSTGRES_DB:-gatesense}
+    REDIS_URL: redis://redis:6379/0
+    JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env.prod}
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env.prod}
+    METRICS_TOKEN: ${METRICS_TOKEN:-}
+    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    # Email: Mailpit (below) catches everything unless you point these at a real provider.
+    SMTP_HOST: ${SMTP_HOST:-mailpit}
+    SMTP_PORT: ${SMTP_PORT:-1025}
+    SMTP_USERNAME: ${SMTP_USERNAME:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+    SMTP_FROM: ${SMTP_FROM:-GateSense <noreply@gatesense.local>}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+    TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+    # Snapshots on a local volume by default; set SNAPSHOT_STORAGE=s3 and the S3_* values
+    # for an S3-compatible bucket instead.
+    SNAPSHOT_STORAGE: ${SNAPSHOT_STORAGE:-local}
+    S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+    S3_BUCKET: ${S3_BUCKET:-gatesense-snapshots}
+    S3_REGION: ${S3_REGION:-us-east-1}
+    S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+    S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+    VISITOR_RETENTION_DAYS: ${VISITOR_RETENTION_DAYS:-90}
+    DEMO_MODE: ${DEMO_MODE:-false}
+    DEMO_PASSWORD: ${DEMO_PASSWORD:-GateSense@123}
+  volumes:
+    - snapshots:/data
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gatesense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-gatesense}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    logging: *logging
+    # Append-only file: queued jobs and rate-limit counters survive a restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    # Catches outgoing email when no real SMTP provider is set. Its web page is bound to
+    # the server's localhost only: open it through an SSH tunnel (docs/deployment.md).
+    image: axllent/mailpit:v1.34.0
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  # One-shot, on every "up", before the API starts: apply database migrations. In demo
+  # mode, also seed the demo society if the database is empty (the seed never touches a
+  # database that already has data). A real society starts with python -m app.setup_society.
+  migrate:
+    <<: *backend
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && if [ "$$DEMO_MODE" = "true" ]; then python -m app.seed; fi
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *backend
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *backend
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=2",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "celery",
+          "-A",
+          "app.workers.celery_app",
+          "inspect",
+          "ping",
+          "--timeout",
+          "5",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Puts scheduled jobs on the queue (escalation every minute, nightly reconciliation,
+  # retention purge, demo reset). Exactly one beat may run.
+  beat:
+    <<: *backend
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "beat",
+        "--loglevel=info",
+        "--schedule",
+        "/tmp/celerybeat-schedule",
+      ]
+    healthcheck: { disable: true }
+    volumes: []
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    image: ${IMAGE_PREFIX:-ghcr.io/akinchan-jain-7/gatesense}-frontend:${IMAGE_TAG:-latest}
+    build: { context: ./frontend, target: prod }
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # Your public hostname: Caddy gets the HTTPS certificate for it by itself.
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod}
+      API_UPSTREAM: api:8000
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api: { condition: service_healthy }
+
+  # The live demo's traffic: only with the "demo" profile (COMPOSE_PROFILES=demo).
+  simulator:
+    image: ${IMAGE_PREFIX:-ghcr.io/akinchan-jain-7/gatesense}-simulator:${IMAGE_TAG:-latest}
+    build: { context: ./simulator }
+    profiles: ["demo"]
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SIM_API_URL: http://api:8000
+      SIM_PASSWORD: ${DEMO_PASSWORD:-GateSense@123}
+      SIM_SPEED: ${SIM_SPEED:-1}
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  postgres-data:
+  redis-data:
+  snapshots:
+  caddy-data:
+  caddy-config:

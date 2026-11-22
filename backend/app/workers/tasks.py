@@ -6,6 +6,7 @@ work but before acknowledging it) never repeats its effect.
 
 import logging
 import uuid
+from datetime import UTC, datetime
 
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -132,5 +133,18 @@ def daily_retention() -> dict[str, int]:
 
     async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
         return await retention.purge(db, build_snapshot_storage(settings), settings)
+
+    return run_job(job)
+
+
+@celery_app.task(name="demo.nightly_reset")  # type: ignore[untyped-decorator]
+def nightly_demo_reset() -> dict[str, int]:
+    from app.services import demo
+
+    async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
+        summary = await demo.nightly_reset(db, settings, now=datetime.now(UTC))
+        if summary is None:
+            return {"reset": 0}
+        return {"reset": 1, "history_visits": summary.history_visits}
 
     return run_job(job)

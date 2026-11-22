@@ -23,8 +23,9 @@ select = [
 # Note: "E" already includes E722 (no bare `except:`), as the brief requires.
 
 [lint.per-file-ignores]
-# assert is how pytest works; tests use made-up passwords and secrets on purpose
-"**/tests/**" = ["S101", "S105", "S106"]
+# assert is how pytest works; tests use made-up passwords and secrets on purpose, and seeded
+# random generators so runs repeat
+"**/tests/**" = ["S101", "S105", "S106", "S311"]
 
 [format]
 quote-style = "double"

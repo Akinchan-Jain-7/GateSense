@@ -13,15 +13,38 @@ The agent updates this file at the start and end of every session.
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
 | 6 | Frontend (professional UI) | ✅ Done | [#9](https://github.com/Akinchan-Jain-7/GateSense/pull/9) |
 | 7 | Hardening, offline mode, performance | ✅ Done | [#10](https://github.com/Akinchan-Jain-7/GateSense/pull/10) |
-| — | Closing the gaps in Phases 0–7 | 🟡 In progress | `gaps-phase-0-7` |
+| — | Closing the gaps in Phases 0–7 | ✅ Merged (detector numbers pending the Kaggle run) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
 | 8 | Docker and deployment | 🟡 Mostly built (draft) | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Now:** closing the gaps the owner and agent found in Phases 0–7 (section below), then
-the rest of Phase 8 and Phase 9.
+**Now:** the detector results from Kaggle (follow-up PR), then the rest of Phase 8 and
+Phase 9. Phase 8 goes live once the owner picks a host and creates the account (see
+`docs/deployment.md`, "What the owner does").
 
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
+
+## Handoff (end of session, 2026-11-22 22:05 IST)
+
+Pick up here in the next session:
+
+1. **PR #11 (Phase 8):** 8 of 9 CI checks green after merging main (#12). The secret scan
+   failed on a false positive (`METRICS_TOKEN=` empty in `.env.prod.example`); fixed with a
+   fingerprint in `.gitleaksignore`, and the scan is green again.
+2. **Kaggle detector training** (owner's account, notebook "GateSense 01 - plate detector
+   training"): background versions queued for hours, so an **interactive** Run All was
+   started at ~21:50 IST on GPU T4 x2 with all five datasets attached. Open
+   kaggle.com/code/akinchanjain7/gatesense-01-plate-detector-training/edit and check the
+   outputs. If the session stopped, run it again interactively. Results land in
+   `/kaggle/working/gatesense_results/` (`plate_detector.onnx`, `detector_comparison.md`
+   and `.json`); download them, put the md/json in `anpr/eval/results/`, run
+   `eval/benchmark_detector.py` on the ONNX, publish the model on a `models-v1` release,
+   fill the README accuracy rows and ADR-0009, and tick the two open items in "Closing the
+   gaps" (follow-up PR from `main`).
+3. **Phase 8:** `docs/deployment.md`, ADR-0014 (Proposed) and `docs/learn/phase-8.md` are
+   written. Left: the PR #11 description, merge when green. Going live waits on the owner
+   (host choice and account, then the steps in `docs/deployment.md`).
+4. **Then Phase 9.**
 
 ## Standing rules from the owner
 
@@ -39,6 +62,44 @@ bot token for one real end-to-end test, and a first run of the app on their own 
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 8: Docker and deployment
+
+Branch: `phase-8-deployment`
+
+- [x] Demo traffic simulator (`simulator/`): residents, visitors with approvals, guest passes,
+      blurry reads, watchlist hits and overstays, all through the public API; restarts by
+      itself after a demo reset. Tests against a fake API, plus a 5-minute run against the
+      real local stack
+- [x] Nightly demo reset (Celery Beat, 04:00 IST, only when `DEMO_MODE=true`)
+- [x] Production Dockerfiles: backend `prod` target (slim, non-root, healthcheck; one image
+      for API, worker and beat), frontend `prod` target (Caddy: static build, automatic HTTPS,
+      strict CSP, `/api` forwarded), simulator image (non-root)
+- [x] `docker-compose.prod.yml` + `.env.prod.example`: only Caddy is published; one-shot
+      `migrate` step; simulator behind the `demo` profile
+- [x] `python -m app.setup_society`: first admin for a real (non-demo) society
+- [x] CI: simulator job; `compose-prod` job builds the prod images and checks the running
+      stack through Caddy
+- [x] `deploy.yml`: after green CI on `main`, multi-arch (amd64 + arm64) images to GHCR,
+      then an SSH deploy once the server secrets exist
+- [x] Free-tier check and hosting proposal (`docs/deployment.md`), ADR-0014 (proposed)
+- [x] `docs/learn/phase-8.md`
+- [ ] **Owner:** choose a host, create the account and server, add the GitHub secrets
+- [ ] Live URL works, demo logins work, dashboard shows simulated traffic (after the owner's step)
+
+### Notes and deviations
+
+- **One server instead of several free platforms.** The brief suggested Render / Railway /
+  Fly.io + Neon + Upstash. Checked in November 2026, none of those free tiers can run an
+  always-on Celery worker, Beat and the simulator together (details and sources in
+  `docs/deployment.md`). The proposal is one small VM running `docker-compose.prod.yml`.
+  ADR-0014 stays **Proposed** until the owner agrees.
+- **Caddy serves the frontend** instead of Vercel, so the app, the API and the WebSocket share
+  one origin and one certificate (no CORS, no second deploy). Vercel stays an option.
+- **Docker images couldn't be pulled in the agent's workspace** (registries blocked), so the
+  production images were built and tested by the `compose-prod` CI job on GitHub's runners.
+- **Simulator speed:** `SIM_SPEED` compresses only the simulator's own clock. The server's
+  timers (approval timeout, visit limits) run in real time, so the live demo uses speed 1.
 
 ## Closing the gaps in Phases 0–7
 
@@ -66,7 +127,7 @@ before Phase 8 and 9 continue.
       req/s, 0 failures), explained in `docs/performance.md`
 - [ ] Owner: labelled photos → notebook 02 (OCR comparison); Telegram bot token → one real
       Telegram test; run the app locally once
-- [ ] Docs, PR, merge
+- [x] Docs, PR, merge ([#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12))
 
 ### Notes and deviations
 

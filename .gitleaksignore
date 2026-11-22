@@ -1,0 +1,6 @@
+# Known false positives in history, ignored by exact fingerprint (commit:file:rule:line).
+# Each entry must say why it is NOT a secret.
+#
+# .env.prod.example line 37 is `METRICS_TOKEN=` with no value; generic-api-key reads the
+# next line (`VISITOR_RETENTION_DAYS=90`) as the token.
+5e2313d57234bb3512d8ffbd2cb9714a6932ff4e:.env.prod.example:generic-api-key:37

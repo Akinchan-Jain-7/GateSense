@@ -9,3 +9,4 @@ useDefault = true
 description = "Prose in CLAUDE.md ('bcrypt/argon2 password hashing') trips generic-api-key; it is not a secret."
 regexTarget = "match"
 regexes = ['''bcrypt/argon2''']
+

@@ -1,0 +1,53 @@
+# GateSense public entry point (production image).
+#
+# SITE_ADDRESS is the public hostname, e.g. gatesense.example.com or 203-0-113-7.sslip.io.
+# Caddy then gets and renews a Let's Encrypt certificate by itself and redirects HTTP to
+# HTTPS. Use SITE_ADDRESS=:80 for plain HTTP (local tests, or behind another proxy).
+{
+	admin 127.0.0.1:2019
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# The API, its docs, health checks, the WebSocket and the visitor's time-left page.
+	@backend path /api/* /visit/* /docs /docs/* /redoc /openapi.json /health /ready
+	handle @backend {
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+
+	# Prometheus metrics stay on the private network (scrape api:8000/metrics directly).
+	handle /metrics {
+		respond 404
+	}
+
+	# Everything else is the React app. Unknown paths get index.html (client-side routes).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+			X-Content-Type-Options nosniff
+			Referrer-Policy strict-origin-when-cross-origin
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			X-Frame-Options DENY
+			# Browsers ignore this over plain HTTP, so it is safe with SITE_ADDRESS=:80 too.
+			Strict-Transport-Security "max-age=31536000"
+		}
+		# Hashed file names never change, so browsers may keep them for a year. Everything
+		# else (the page, the service worker) must be checked each time, or updates never
+		# arrive.
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@unhashed not path /assets/*
+		header @unhashed Cache-Control "no-cache"
+	}
+
+	header -Server
+	log {
+		output stdout
+		format json
+	}
+}
