@@ -114,8 +114,8 @@ Branch: `phase-9-polish`
 - [x] `docs/learn/INTERVIEW_GUIDE.md`: pitch, whiteboard walkthrough, 10 hard questions,
       what I'd do differently
 - [x] `docs/api.md` checked against the OpenAPI schema: every route is listed
-- [ ] README rewritten recruiter-first, with the detector results (after the Kaggle run)
-- [ ] Badges: CI, coverage, licence, live demo (live demo once deployed)
+- [x] README rewritten recruiter-first, with the detector results and honest known limitations
+- [x] Badges: CI, coverage, licence; the live-demo badge says "not deployed yet" until a host is picked
 - [x] Reviewed the 4 moderate `npm audit` findings: production dependencies have 0; all four
       are one build-time chain (`vite-plugin-pwa` → `workbox-build` → old `glob`/`minimatch`,
       a denial of service on crafted glob patterns). Only our own build config's patterns
