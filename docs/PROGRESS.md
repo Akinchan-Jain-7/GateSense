@@ -113,7 +113,11 @@ Branch: `phase-9-polish`
 - [x] `docs/api.md` checked against the OpenAPI schema: every route is listed
 - [ ] README rewritten recruiter-first, with the detector results (after the Kaggle run)
 - [ ] Badges: CI, coverage, licence, live demo (live demo once deployed)
-- [ ] Review the 4 moderate `npm audit` findings (dev-only dependencies)
+- [x] Reviewed the 4 moderate `npm audit` findings: production dependencies have 0; all four
+      are one build-time chain (`vite-plugin-pwa` → `workbox-build` → old `glob`/`minimatch`,
+      a denial of service on crafted glob patterns). Only our own build config's patterns
+      reach it, never user input. npm's "fix" downgrades the PWA plugin a major version, so
+      it's accepted for now; revisit when Workbox updates
 - [ ] Release notes and tag `v1.0.0` (after the owner's review; going live can follow)
 - [ ] Owner: record the demo video and GIF (`docs/demo-script.md`)
 
