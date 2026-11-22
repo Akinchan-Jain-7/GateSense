@@ -4,7 +4,9 @@
 #                                    single public entry point: HTTPS (automatic
 #                                    certificates), and /api, /visit and /docs forwarded to
 #                                    the API container. See Caddyfile.
-FROM node:22-alpine AS base
+# The build runs on the CI machine's own CPU even when making an arm64 image: its output
+# (HTML, JS, CSS) is the same for every platform, and emulating arm64 would be slow.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS base
 WORKDIR /app
 # Dependencies first so this layer is cached until package*.json changes.
 COPY package.json package-lock.json ./

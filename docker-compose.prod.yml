@@ -10,8 +10,8 @@
 
 name: gatesense
 
-x-logging: &logging
-  # Keep container logs from filling the disk: at most 3 files of 10 MB per service.
+x-logging:
+  &logging # Keep container logs from filling the disk: at most 3 files of 10 MB per service.
   driver: json-file
   options: { max-size: "10m", max-file: "3" }
 
@@ -115,9 +115,27 @@ services:
 
   worker:
     <<: *backend
-    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=2",
+      ]
     healthcheck:
-      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping", "--timeout", "5"]
+      test:
+        [
+          "CMD",
+          "celery",
+          "-A",
+          "app.workers.celery_app",
+          "inspect",
+          "ping",
+          "--timeout",
+          "5",
+        ]
       interval: 30s
       timeout: 15s
       retries: 5
@@ -129,7 +147,16 @@ services:
   # retention purge, demo reset). Exactly one beat may run.
   beat:
     <<: *backend
-    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "beat",
+        "--loglevel=info",
+        "--schedule",
+        "/tmp/celerybeat-schedule",
+      ]
     healthcheck: { disable: true }
     volumes: []
     depends_on:
