@@ -68,11 +68,13 @@ async def test_dispatcher_sends_once(db: AsyncSession, society: Society) -> None
         "sent": 1,
         "retrying": 0,
         "failed": 0,
+        "cancelled": 0,
     }
     assert await notifications.dispatch_due(db, mailer, get_settings(), NOW) == {
         "sent": 0,
         "retrying": 0,
         "failed": 0,
+        "cancelled": 0,
     }
     ((to, email),) = mailer.sent
     assert to == "p@test.in"
@@ -87,7 +89,7 @@ async def test_failed_sends_retry_with_backoff_then_give_up(
     mailer = FakeMailer(fail_times=10)
     settings = get_settings()
     first = await notifications.dispatch_due(db, mailer, settings, NOW)
-    assert first == {"sent": 0, "retrying": 1, "failed": 0}
+    assert first == {"sent": 0, "retrying": 1, "failed": 0, "cancelled": 0}
     note = await db.scalar(select(Notification))
     assert note is not None
     assert note.next_attempt_at == NOW + timedelta(minutes=1)

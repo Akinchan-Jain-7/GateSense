@@ -4,6 +4,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import Iterator, MutableMapping
+from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -19,7 +20,7 @@ from app.core.config import get_settings
 from app.main import app
 from app.models import Flat, Notification, Society, User
 from app.models.enums import NotificationStatus
-from app.services import realtime
+from app.services import notifications, realtime
 from app.services.telegram import TelegramBot
 from app.workers.tasks import send_approval
 from tests import factories
@@ -199,7 +200,43 @@ async def test_approval_request_is_sent_once_per_linked_resident(
     ]
 
 
-async def test_failed_sends_are_logged(
+async def test_a_failed_send_is_retried_by_the_dispatcher(
+    client: httpx2.AsyncClient,
+    bot: FakeBot,
+    guard: User,
+    resident: User,
+    flat: Flat,
+    db: AsyncSession,
+) -> None:
+    await link(client, resident, 555)
+    approval_id = uuid.UUID(await pending_approval(client, guard, flat))
+    settings = get_settings()
+    real_send = bot.send_message
+
+    async def broken(*args: object) -> None:
+        raise RuntimeError("Telegram is down")
+
+    bot.send_message = broken  # type: ignore[method-assign, assignment]
+    assert await send_approval(db, settings, bot, approval_id) == 0  # type: ignore[arg-type]
+    note = await db.scalar(select(Notification))
+    assert note is not None
+    assert (note.status, note.attempts) == (NotificationStatus.PENDING, 1)
+    assert note.last_error == "RuntimeError: Telegram is down"
+    assert note.next_attempt_at is not None
+
+    # The approval job running again doesn't hammer Telegram: retries wait for the dispatcher.
+    assert await send_approval(db, settings, bot, approval_id) == 0  # type: ignore[arg-type]
+    assert note.attempts == 1
+
+    bot.send_message = real_send  # type: ignore[method-assign]
+    later = note.next_attempt_at + timedelta(seconds=1)
+    counts = await notifications.dispatch_due(db, None, settings, later, bot=bot)
+    assert counts["sent"] == 1
+    assert (note.status, note.attempts, note.last_error) == (NotificationStatus.SENT, 2, None)
+    assert bot.messages[-1][0] == 555
+
+
+async def test_a_retry_is_cancelled_once_the_approval_is_answered(
     client: httpx2.AsyncClient,
     bot: FakeBot,
     guard: User,
@@ -213,11 +250,26 @@ async def test_failed_sends_are_logged(
     async def broken(*args: object) -> None:
         raise RuntimeError("Telegram is down")
 
+    real_send = bot.send_message
     bot.send_message = broken  # type: ignore[method-assign, assignment]
-    assert await send_approval(db, get_settings(), bot, approval_id) == 0  # type: ignore[arg-type]
+    await send_approval(db, get_settings(), bot, approval_id)  # type: ignore[arg-type]
+    bot.send_message = real_send  # type: ignore[method-assign]
+    messages_before = len(bot.messages)
+
+    decided = await client.post(
+        f"/api/v1/approvals/{approval_id}/decision",
+        json={"decision": "approve"},
+        headers=auth_headers(resident),
+    )
+    assert decided.status_code == 200
     note = await db.scalar(select(Notification))
-    assert note is not None
-    assert (note.status, note.last_error) == (NotificationStatus.FAILED, "Telegram is down")
+    assert note is not None and note.next_attempt_at is not None
+    later = note.next_attempt_at + timedelta(seconds=1)
+    counts = await notifications.dispatch_due(db, None, get_settings(), later, bot=bot)
+    await db.refresh(note)
+    assert counts["cancelled"] == 1
+    assert note.status is NotificationStatus.CANCELLED
+    assert len(bot.messages) == messages_before  # nothing sent about an answered visitor
 
 
 async def test_bot_client_talks_to_the_bot_api() -> None:
