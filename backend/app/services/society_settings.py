@@ -1,5 +1,6 @@
-"""Per-society settings the admin can change: visit time limits, the approval timeout and
-how long visitors' personal data is kept.
+"""Per-society settings the admin can change: visit time limits, the approval timeout,
+how long visitors' personal data is kept, the OCR confidence threshold and the number of
+visitor parking spaces.
 
 No row yet = the app defaults from config (so a fresh society works without setup).
 The first save creates the row.
@@ -26,6 +27,8 @@ class VisitLimits:
     service_minutes: int
     approval_timeout_seconds: int
     visitor_retention_days: int
+    plate_confidence_threshold: float
+    visitor_parking_slots: int
 
     def for_category(self, category: VisitCategory) -> timedelta:
         minutes = {
@@ -49,6 +52,8 @@ def defaults(settings: Settings) -> VisitLimits:
         service_minutes=settings.visit_limit_service_minutes,
         approval_timeout_seconds=settings.approval_timeout_seconds,
         visitor_retention_days=settings.visitor_retention_days,
+        plate_confidence_threshold=settings.plate_confidence_threshold,
+        visitor_parking_slots=settings.visitor_parking_slots,
     )
 
 
@@ -63,6 +68,8 @@ async def visit_limits(db: AsyncSession, settings: Settings, society_id: uuid.UU
         service_minutes=row.service_minutes,
         approval_timeout_seconds=row.approval_timeout_seconds,
         visitor_retention_days=row.visitor_retention_days,
+        plate_confidence_threshold=row.plate_confidence_threshold,
+        visitor_parking_slots=row.visitor_parking_slots,
     )
 
 

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, SmallInteger, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
@@ -48,3 +48,7 @@ class SocietySettings(Timestamps, Base):
     approval_timeout_seconds: Mapped[int] = mapped_column(Integer)
     # Visitors' personal data (and plate snapshots) are deleted after this many days.
     visitor_retention_days: Mapped[int] = mapped_column(Integer, server_default="90")
+    # OCR reads below this confidence go to the guard review queue (Phase 6: admin-editable).
+    plate_confidence_threshold: Mapped[float] = mapped_column(Float, server_default="0.8")
+    # Parking spaces kept for visitors; the occupancy figure in analytics is measured against it.
+    visitor_parking_slots: Mapped[int] = mapped_column(Integer, server_default="20")

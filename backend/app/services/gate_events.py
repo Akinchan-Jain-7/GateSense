@@ -51,7 +51,7 @@ from app.models.enums import (
     VisitStatus,
     VisitTrigger,
 )
-from app.services import debounce, guest_passes, realtime
+from app.services import debounce, guest_passes, realtime, society_settings
 from app.services.db_helpers import get_in_society
 from app.services.errors import ConflictError, InvalidInputError
 from app.services.pagination import PageRequest, PageResult, paginate
@@ -230,7 +230,8 @@ async def apply_match(
         return
     event.plate_normalized = reading.plate
     event.ocr_fixes = reading.fixes
-    unsure = not trusted and event.confidence < settings.plate_confidence_threshold
+    limits = await society_settings.visit_limits(db, settings, event.society_id)
+    unsure = not trusted and event.confidence < limits.plate_confidence_threshold
 
     # Watchlist first, even for unsure reads: a false alarm is cheap, a missed one isn't.
     flagged = await _watchlist_hit(db, settings, event.society_id, reading.plate)

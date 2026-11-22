@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     # --- Gate events ---
     # OCR reads below this confidence go to the guard review queue instead of acting.
     plate_confidence_threshold: float = Field(default=0.80, ge=0, le=1)
+    # Default number of visitor parking spaces (admins can change it per society).
+    visitor_parking_slots: int = Field(default=20, ge=0)
     # Max edit distance for fuzzy matching against known plates (0 = exact only).
     plate_fuzzy_max_distance: int = Field(default=1, ge=0, le=2)
     # The same plate on the same lane within this many seconds is one event (debounce).
@@ -108,6 +110,9 @@ class Settings(BaseSettings):
     # --- Demo data ---
     # Password for every seeded demo account. Public on purpose: the live demo shows it.
     demo_password: str = "GateSense@123"  # noqa: S105
+    # Demo mode: the landing page shows one-click demo logins and admins can reset the data.
+    # Turn it on for the public demo only; never on a real society's deployment.
+    demo_mode: bool = False
 
     @model_validator(mode="after")
     def _refuse_dev_secret_in_production(self) -> "Settings":
