@@ -330,3 +330,11 @@ def test_the_nightly_reset_is_scheduled() -> None:
 
     job = celery_app.conf.beat_schedule["demo-reset-nightly"]
     assert job["task"] == "demo.nightly_reset"
+
+
+def test_the_nightly_reset_task_runs_and_skips_a_real_society() -> None:
+    """Runs the Celery task body itself (not just the service): with demo mode off it must
+    connect, decide there is nothing to do, and touch no data."""
+    from app.workers.tasks import nightly_demo_reset
+
+    assert nightly_demo_reset() == {"reset": 0}

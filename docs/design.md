@@ -27,6 +27,7 @@ One accent, taken from the plate itself: the blue of the IND strip.
 | `border` | `#E3E6EB` | `#2A2F37` | every outline (no shadows) |
 | `text` | `#15181D` | `#E8EBEF` | body text |
 | `muted` | `#5B6470` | `#A0A8B3` | secondary text (AA on both surfaces) |
+| `faint` | `#687079` | `#848C97` | labels, captions (≥ 4.5:1 on `bg`, `surface` and `surface-2`) |
 | `accent` | `#2147C9` | `#7A97FF` | links, focus rings, primary buttons |
 
 Status colours are not "accents": they only ever mean a state. Green = approved / allowed,
@@ -65,3 +66,24 @@ an icon as well, never colour alone.
 One orchestrated moment: on the landing page, plates arrive one by one into the sample
 gate feed. Elsewhere motion only answers an action (a card leaving after Approve, a dialog
 opening). Everything respects `prefers-reduced-motion`.
+
+## Accessibility checks
+
+`frontend/e2e/accessibility.spec.ts` runs axe-core's WCAG 2.1 A and AA rules on every main
+screen (landing, login, guard console, all resident and admin pages) in the light and dark
+themes, and on the guard and resident screens at phone width (375 px), plus keyboard-only
+login. It runs in CI with the other Playwright tests.
+
+The first run (Nov 2026) found three problems, all fixed:
+
+- **`faint` text was too light**: 3.1:1 on white (light) and 3.5–4.1:1 (dark). The token
+  moved to `#687079` / `#848C97`, which pass 4.5:1 on every background it is used on.
+- **The guard's language button** said "Switch to Hindi" to screen readers while showing
+  "हिन्दी", so a voice-control user saying what they see couldn't press it. Its name now
+  starts with the visible word.
+- **The overview's time-range picker** used tabs without tab panels, so `aria-controls`
+  pointed at nothing. It is now a group of toggle buttons (`components/ui/segmented.tsx`).
+
+Automated rules catch roughly half of real accessibility problems. Still to do by hand:
+a full keyboard pass of each journey and a screen-reader pass (NVDA on Windows,
+TalkBack on Android for the resident app).

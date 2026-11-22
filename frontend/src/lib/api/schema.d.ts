@@ -1956,7 +1956,7 @@ export interface components {
          * NotificationStatus
          * @enum {string}
          */
-        NotificationStatus: "pending" | "sent" | "failed";
+        NotificationStatus: "pending" | "sent" | "failed" | "cancelled";
         /** Page[AlertRead] */
         Page_AlertRead_: {
             /** Items */

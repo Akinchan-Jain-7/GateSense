@@ -232,7 +232,7 @@ describe('Guard console', () => {
     signInAs('guard')
     guardApi()
     renderRoutes([{ path: '/guard', element: <GuardConsole /> }], '/guard')
-    await userEvent.click(await screen.findByRole('button', { name: 'Switch to Hindi' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'हिन्दी: Switch to Hindi' }))
     expect(await screen.findByRole('heading', { name: 'गेट कंसोल' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'निर्णय की प्रतीक्षा' })).toBeInTheDocument()
     setLanguage('en')

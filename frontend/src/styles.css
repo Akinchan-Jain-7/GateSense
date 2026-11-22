@@ -13,7 +13,7 @@
   --border-strong: #cdd2d9;
   --text: #15181d;
   --muted: #5b6470;
-  --faint: #8a929d;
+  --faint: #687079; /* >= 4.5:1 on bg, surface and surface-2 (WCAG AA text) */
   --accent: #2147c9;
   --accent-strong: #1a39a3;
   --accent-fg: #ffffff;
@@ -38,7 +38,7 @@
   --border-strong: #3a414b;
   --text: #e8ebef;
   --muted: #a0a8b3;
-  --faint: #6f7782;
+  --faint: #848c97; /* >= 4.5:1 on the dark surfaces */
   --accent: #7a97ff;
   --accent-strong: #3d63e6;
   --accent-fg: #ffffff;

@@ -22,7 +22,8 @@ export function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title={title} description={description}>
+      {/* alertdialog: screen readers announce it as a question that needs an answer now. */}
+      <DialogContent role="alertdialog" title={title} description={description}>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             variant="secondary"

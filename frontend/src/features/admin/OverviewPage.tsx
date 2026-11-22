@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/states'
 import { Table, Td, Th, Tr } from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Segmented } from '@/components/ui/segmented'
 import { api, unwrap } from '@/lib/api/client'
 import { formatAgo, formatMinutes } from '@/lib/format'
 
@@ -66,20 +66,12 @@ export function OverviewPage() {
   return (
     <div>
       <PageHeader title="Overview" description="Hours and days are in Indian time.">
-        <Tabs
-          value={String(days)}
-          onValueChange={(v) => {
-            setDays(Number(v))
-          }}
-        >
-          <TabsList aria-label="Time range">
-            {WINDOWS.map((w) => (
-              <TabsTrigger key={w} value={String(w)}>
-                {w.toString()} days
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Segmented
+          label="Time range"
+          options={WINDOWS.map((w) => ({ value: w, label: `${w.toString()} days` }))}
+          value={days}
+          onChange={setDays}
+        />
       </PageHeader>
 
       {overview.isError ? (

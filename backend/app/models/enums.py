@@ -113,6 +113,7 @@ class NotificationStatus(StrEnum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
+    CANCELLED = "cancelled"  # no longer worth sending, e.g. the approval was already answered
 
 
 class EscalationTaskStatus(StrEnum):
