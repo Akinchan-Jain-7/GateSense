@@ -120,6 +120,14 @@ class EscalationTaskStatus(StrEnum):
     RESOLVED = "resolved"
 
 
+class ReconciliationKind(StrEnum):
+    """What the nightly reconciliation found."""
+
+    EXIT_WITHOUT_ENTRY = "exit_without_entry"  # a resident left but was never seen coming in
+    ENTRY_NEVER_CLOSED = "entry_never_closed"  # seen coming in twice, never seen leaving between
+    VISIT_NOT_CLOSED = "visit_not_closed"  # a visitor "inside" long after the time limit
+
+
 class EscalationOutcome(StrEnum):
     REACHED = "reached"
     NOT_REACHED = "not_reached"

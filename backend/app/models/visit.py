@@ -163,12 +163,13 @@ class GuestPass(UUIDPrimaryKey, Timestamps, Base):
 
 
 class EscalationTask(UUIDPrimaryKey, Timestamps, Base):
-    """A "call the resident" job on the guard console for an overstaying visit (Phase 5)."""
+    """A "call the resident" job on the guard console for an overstaying visit."""
 
     __tablename__ = "escalation_tasks"
 
+    # One escalation per visit: the ladder can run every minute without duplicating it.
     visit_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("visits.id", ondelete="CASCADE"), index=True
+        ForeignKey("visits.id", ondelete="CASCADE"), unique=True
     )
     status: Mapped[EscalationTaskStatus] = mapped_column(
         str_enum(EscalationTaskStatus, "escalation_task_status"),
@@ -183,3 +184,5 @@ class EscalationTask(UUIDPrimaryKey, Timestamps, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    visit: Mapped[Visit] = relationship(lazy="raise")

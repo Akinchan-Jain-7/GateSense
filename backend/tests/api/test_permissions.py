@@ -77,6 +77,11 @@ ROUTES = [
     ("PATCH", "/api/v1/settings/visits", {ADMIN}),
     ("POST", "/api/v1/telegram/link-code", {RESIDENT}),
     ("DELETE", "/api/v1/telegram/link", {RESIDENT}),
+    ("GET", "/api/v1/escalations", {ADMIN, GUARD}),
+    ("POST", f"/api/v1/escalations/{ANY_ID}/resolve", {ADMIN, GUARD}),
+    ("GET", "/api/v1/reconciliation", {ADMIN}),
+    ("POST", f"/api/v1/reconciliation/{ANY_ID}/resolve", {ADMIN}),
+    ("GET", "/api/v1/notifications", {ADMIN}),
 ]
 
 
@@ -118,6 +123,8 @@ def test_every_api_route_is_covered() -> None:
             continue
         if path == "/api/v1/devices/me":  # device-key auth, tested separately
             continue
+        if path.startswith("/api/v1/public/"):  # signed visitor links, no login by design
+            continue
         if path == "/api/v1/gate-events":  # GET is staff; POST is device-key auth
             operations = {m: op for m, op in operations.items() if m != "post"}
         normalized = path
@@ -134,6 +141,8 @@ def test_every_api_route_is_covered() -> None:
             "visit_id",
             "approval_id",
             "pass_id",
+            "task_id",
+            "flag_id",
         ):
             normalized = normalized.replace("{" + name + "}", "{id}")
         actual |= {(method.upper(), normalized) for method in operations}

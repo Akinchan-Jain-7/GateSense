@@ -200,6 +200,7 @@ async def test_visit_settings_defaults_and_admin_update(
         "cab_minutes": 10,
         "service_minutes": 120,
         "approval_timeout_seconds": 180,
+        "visitor_retention_days": 90,
     }
     updated = await client.patch(
         "/api/v1/settings/visits",

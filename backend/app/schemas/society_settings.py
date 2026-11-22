@@ -9,6 +9,7 @@ class VisitSettingsRead(BaseModel):
     cab_minutes: int
     service_minutes: int = Field(description="Default when a resident doesn't set a duration")
     approval_timeout_seconds: int = Field(description="Time residents get before the guard decides")
+    visitor_retention_days: int = Field(description="Visitor personal data is deleted after this")
 
 
 class VisitSettingsUpdate(WriteModel):
@@ -17,3 +18,4 @@ class VisitSettingsUpdate(WriteModel):
     cab_minutes: int | None = Field(default=None, ge=2, le=120)
     service_minutes: int | None = Field(default=None, ge=10, le=24 * 60)
     approval_timeout_seconds: int | None = Field(default=None, ge=30, le=1800)
+    visitor_retention_days: int | None = Field(default=None, ge=7, le=3650)

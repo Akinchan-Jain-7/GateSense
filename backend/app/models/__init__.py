@@ -2,7 +2,7 @@
 
 from app.models.audit import AuditLog
 from app.models.gate import Alert, Device, Gate, GateEvent, PlateCorrection
-from app.models.notification import Notification
+from app.models.notification import Notification, ReconciliationFlag
 from app.models.society import Flat, Society, SocietySettings
 from app.models.user import RefreshToken, Resident, User
 from app.models.vehicle import Vehicle, WatchlistEntry
@@ -26,6 +26,7 @@ __all__ = [
     "GateEvent",
     "GuestPass",
     "Notification",
+    "ReconciliationFlag",
     "PlateCorrection",
     "RefreshToken",
     "Resident",

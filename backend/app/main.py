@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
-from app.api import system
+from app.api import public, system
 from app.api.errors import register_error_handlers
 from app.api.v1.router import api_router
 from app.core.config import get_settings
@@ -76,6 +76,7 @@ def create_app() -> FastAPI:
 
     register_error_handlers(app)
     app.include_router(system.router)
+    app.include_router(public.router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     return app
 
