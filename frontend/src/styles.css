@@ -1,33 +1,158 @@
-/* Minimal placeholder styles. Replaced by Tailwind + design tokens in Phase 6. */
+@import 'tailwindcss';
+
+/* Design tokens: see docs/design.md. Components use the Tailwind names below
+   (bg-surface, text-muted, border-border, ...); themes swap the variables. */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light dark;
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  line-height: 1.5;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e3e6eb;
+  --border-strong: #cdd2d9;
+  --text: #15181d;
+  --muted: #5b6470;
+  --faint: #8a929d;
+  --accent: #2147c9;
+  --accent-strong: #1a39a3;
+  --accent-fg: #ffffff;
+  --accent-soft: #e8edfc;
+  --ok: #157a3d;
+  --ok-soft: #e6f4ec;
+  --warn: #9a5300;
+  --warn-soft: #fcf1e1;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  /* Chart series, validated with the dataviz palette checker (light surface). */
+  --series-1: #3b63e0;
+  --series-2: #d9772b;
+  color-scheme: light;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
+.dark {
+  --bg: #111317;
+  --surface: #171a1f;
+  --surface-2: #1e2228;
+  --border: #2a2f37;
+  --border-strong: #3a414b;
+  --text: #e8ebef;
+  --muted: #a0a8b3;
+  --faint: #6f7782;
+  --accent: #7a97ff;
+  --accent-strong: #3d63e6;
+  --accent-fg: #ffffff;
+  --accent-soft: #1d2643;
+  --ok: #4cc47a;
+  --ok-soft: #14291c;
+  --warn: #f0a43a;
+  --warn-soft: #2e2311;
+  --danger: #ff6b5e;
+  --danger-soft: #34191a;
+  /* Dark steps of the same hues, validated against the dark surface. */
+  --series-1: #5f80f2;
+  --series-2: #d2773a;
+  color-scheme: dark;
 }
 
-.placeholder {
-  max-width: 40rem;
-  padding: 2rem;
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Devanagari', system-ui, sans-serif;
+  --font-plate: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
+
+  /* 1.25 type scale */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5625rem;
+  --text-xl--line-height: 2rem;
+  --text-2xl: 1.953rem;
+  --text-2xl--line-height: 2.375rem;
+  --text-3xl: 2.441rem;
+  --text-3xl--line-height: 2.75rem;
 }
 
-.placeholder h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  :lang(hi) {
+    /* Devanagari needs more room above and below the line. */
+    line-height: 1.6;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+  }
 }
 
-.status {
-  opacity: 0.7;
-  font-size: 0.875rem;
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Landing page: plates slide into the sample feed one after another. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-arrive {
+  animation: arrive 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
 }

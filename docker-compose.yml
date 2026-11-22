@@ -96,6 +96,7 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      DEMO_MODE: ${DEMO_MODE:-true}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -152,7 +153,8 @@ services:
   frontend:
     build: ./frontend
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      # The dev server forwards /api (and the WebSocket) to the backend container.
+      VITE_API_PROXY: http://backend:8000
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
     volumes:

@@ -8,9 +8,12 @@ import uuid
 from enum import Enum
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models import AuditLog, User
+from app.services.pagination import PageRequest, PageResult, paginate
 
 
 def _jsonable(value: Any) -> Any:
@@ -56,3 +59,25 @@ def record(
             changes=changes or {},
         )
     )
+
+
+async def list_entries(
+    db: AsyncSession,
+    admin: User,
+    page: PageRequest,
+    *,
+    entity_type: str | None = None,
+    actor_id: uuid.UUID | None = None,
+) -> PageResult[AuditLog]:
+    """Newest first. The audit log is read-only: there is no update or delete."""
+    statement = (
+        select(AuditLog)
+        .options(selectinload(AuditLog.actor))
+        .where(AuditLog.society_id == admin.society_id)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id)
+    )
+    if entity_type:
+        statement = statement.where(AuditLog.entity_type == entity_type)
+    if actor_id:
+        statement = statement.where(AuditLog.actor_id == actor_id)
+    return await paginate(db, statement, page)

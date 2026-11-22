@@ -145,6 +145,80 @@ jobs:
       - name: Build
         run: npm run build
 
+  e2e:
+    name: End-to-end journeys (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: gatesense
+          POSTGRES_PASSWORD: gatesense_ci_password
+          POSTGRES_DB: gatesense
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gatesense" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://gatesense:gatesense_ci_password@localhost:5432/gatesense
+      REDIS_URL: redis://localhost:6379/0
+      DEMO_MODE: "true"
+      SNAPSHOT_STORAGE: local
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: |
+          (cd backend && uv sync --frozen)
+          (cd frontend && npm ci)
+      - name: Frontend API types match the backend
+        run: |
+          (cd backend && uv run python ../scripts/export_openapi.py)
+          (cd frontend && npm run api:types)
+          git diff --exit-code -- frontend/openapi.json frontend/src/lib/api/schema.d.ts \
+            || (echo "::error::Run the export script and npm run api:types, then commit" && exit 1)
+      - name: Migrate and seed the demo society
+        working-directory: backend
+        run: |
+          uv run alembic upgrade head
+          uv run python -m app.seed --reset
+      - name: Start the API and the built web app
+        run: |
+          (cd backend && nohup uv run uvicorn app.main:app --port 8000 > ../api.log 2>&1 &)
+          (cd frontend && npm run build && (nohup npx vite preview --port 4173 > ../web.log 2>&1 &))
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/health && break; sleep 1; done
+          for i in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:4173/ && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4173/api/v1/demo
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run the three journeys
+        working-directory: frontend
+        run: npm run e2e
+      - name: Logs and report on failure
+        if: failure()
+        run: |
+          cat api.log web.log || true
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
   compose:
     name: Docker Compose stack starts
     runs-on: ubuntu-latest
@@ -161,6 +235,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health
           curl -fsS http://127.0.0.1:8000/ready
           curl -fsS -o /dev/null http://127.0.0.1:5173/
+          curl -fsS http://127.0.0.1:5173/api/v1/demo  # the web app's proxy reaches the API
           curl -fsS -o /dev/null http://127.0.0.1:8025/
           curl -fsS http://127.0.0.1:9000/health
       - name: Seed demo data and log in (the README quick start)

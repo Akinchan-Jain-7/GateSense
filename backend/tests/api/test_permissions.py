@@ -82,6 +82,10 @@ ROUTES = [
     ("GET", "/api/v1/reconciliation", {ADMIN}),
     ("POST", f"/api/v1/reconciliation/{ANY_ID}/resolve", {ADMIN}),
     ("GET", "/api/v1/notifications", {ADMIN}),
+    ("GET", "/api/v1/analytics/overview", {ADMIN}),
+    ("GET", "/api/v1/analytics/inside", {ADMIN, GUARD}),
+    ("GET", "/api/v1/audit-logs", {ADMIN}),
+    ("POST", "/api/v1/demo/reset", {ADMIN}),
 ]
 
 
@@ -124,6 +128,8 @@ def test_every_api_route_is_covered() -> None:
         if path == "/api/v1/devices/me":  # device-key auth, tested separately
             continue
         if path.startswith("/api/v1/public/"):  # signed visitor links, no login by design
+            continue
+        if path == "/api/v1/demo":  # public on purpose: the landing page's demo logins
             continue
         if path == "/api/v1/gate-events":  # GET is staff; POST is device-key auth
             operations = {m: op for m, op in operations.items() if m != "post"}

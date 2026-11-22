@@ -1,12 +1,15 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, UUIDPrimaryKey
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class AuditLog(UUIDPrimaryKey, Base):
@@ -23,3 +26,5 @@ class AuditLog(UUIDPrimaryKey, Base):
     # What changed, e.g. {"colour": ["White", "Grey"]}. Never contains secrets.
     changes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    actor: Mapped["User | None"] = relationship(lazy="raise")

@@ -14,6 +14,8 @@ overstaying vehicles.
 
 <!-- Demo GIF goes here (Phase 9) -->
 
+![Guard console: live arrivals, decisions, alerts and call tasks](docs/assets/guard-console.png)
+
 ## Live demo
 
 TBD (deployed in Phase 8). One-click demo logins for Guard, Resident and Admin.
@@ -27,6 +29,14 @@ TBD (deployed in Phase 8). One-click demo logins for Guard, Resident and Admin.
 - **Watchlist alerts**, a low-confidence review queue, analytics, and privacy controls
 
 Full scope: [CLAUDE.md §2](CLAUDE.md#2-feature-scope).
+
+## Screens
+
+| Guard console (हिन्दी) | Resident app | Admin overview |
+|---|---|---|
+| ![Guard console in Hindi](docs/assets/guard-console-hindi.png) | ![Resident approvals on a phone](docs/assets/resident-approvals.png) | ![Admin analytics overview](docs/assets/admin-overview.png) |
+
+More in [docs/assets/](docs/assets/). The design decisions are in [docs/design.md](docs/design.md).
 
 ## Architecture
 
@@ -116,15 +126,24 @@ Architecture Decision Records live in [docs/adr/](docs/adr/):
 - [ADR-0002: Local S3-compatible storage](docs/adr/0002-dev-object-storage.md)
 - [ADR-0003: Database layer and data model](docs/adr/0003-database-layer-and-data-model.md)
 - [ADR-0004: Authentication and authorization](docs/adr/0004-authentication-and-authorization.md)
+- [ADR-0005: Visit state machine](docs/adr/0005-visit-state-machine.md)
+- [ADR-0006: Debounce and idempotency](docs/adr/0006-debounce-and-idempotency.md)
+- [ADR-0008: Plate repair and fuzzy matching](docs/adr/0008-plate-repair-and-fuzzy-matching.md)
+- [ADR-0009: ANPR pipeline and model choice](docs/adr/0009-anpr-pipeline-and-model-choice.md)
+- [ADR-0010: Approvals, real time and background jobs](docs/adr/0010-approvals-real-time-and-background-jobs.md)
+- [ADR-0011: Escalation, notifications and scheduled jobs](docs/adr/0011-escalation-notifications-and-scheduled-jobs.md)
+- [ADR-0012: Frontend architecture and design system](docs/adr/0012-frontend-architecture.md)
 
 ## Testing
 
 - **Backend:** `cd backend && uv run pytest --cov`. Tests run against a real Postgres
   (each test in its own rolled-back transaction) and cover the API, every role on every
   route, migrations, and the seed data.
-- **Frontend:** `cd frontend && npm test`.
-- **CI** runs both (with Postgres and Redis service containers), a full `docker compose up`
-  smoke test, and a secret scan.
+- **Frontend:** `cd frontend && npm test` (Vitest + Testing Library), and
+  `npm run e2e` (Playwright: resident entry, visitor approval, overstay call task) against
+  the running stack.
+- **CI** runs both (with Postgres and Redis service containers), the Playwright journeys
+  against the real API, a full `docker compose up` smoke test, and a secret scan.
 
 ## Known limitations
 

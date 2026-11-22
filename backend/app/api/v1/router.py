@@ -6,12 +6,14 @@ from app.api.v1 import (
     alerts,
     approvals,
     auth,
+    demo,
     escalations,
     flats,
     gate_events,
     gates,
     guards,
     guest_passes,
+    insights,
     notifications,
     realtime,
     residents,
@@ -41,3 +43,5 @@ api_router.include_router(telegram.router)
 api_router.include_router(realtime.router)
 api_router.include_router(escalations.router)
 api_router.include_router(notifications.router)
+api_router.include_router(insights.router)
+api_router.include_router(demo.router)

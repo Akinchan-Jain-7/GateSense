@@ -1,9 +1,13 @@
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, SmallInteger, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Float, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
+
+if TYPE_CHECKING:
+    from app.models.user import Resident
 
 
 class Society(UUIDPrimaryKey, Timestamps, Base):
@@ -28,6 +32,9 @@ class Flat(UUIDPrimaryKey, Timestamps, Base):
     # Visitor parking slots reserved for this flat (used by occupancy analytics later).
     parking_slots: Mapped[int] = mapped_column(SmallInteger, default=1)
 
+    # Read-only: residents are added through the Resident model. Used to show who to call.
+    residents: Mapped[list["Resident"]] = relationship(lazy="raise", viewonly=True)
+
     @property
     def label(self) -> str:
         """Human label used everywhere in the UI, e.g. "B-402"."""
@@ -48,3 +55,7 @@ class SocietySettings(Timestamps, Base):
     approval_timeout_seconds: Mapped[int] = mapped_column(Integer)
     # Visitors' personal data (and plate snapshots) are deleted after this many days.
     visitor_retention_days: Mapped[int] = mapped_column(Integer, server_default="90")
+    # OCR reads below this confidence go to the guard review queue (Phase 6: admin-editable).
+    plate_confidence_threshold: Mapped[float] = mapped_column(Float, server_default="0.8")
+    # Parking spaces kept for visitors; the occupancy figure in analytics is measured against it.
+    visitor_parking_slots: Mapped[int] = mapped_column(Integer, server_default="20")

@@ -2,6 +2,7 @@
 
     uv run python -m app.seed            # seed an empty database (no-op if already seeded)
     uv run python -m app.seed --reset    # wipe every table first, then seed
+    uv run python -m app.seed --no-history   # skip the 14 days of past demo activity
 
 Creates one society with 40 flats (blocks A-D), ~60 residents, ~80 vehicles, 3 guards,
 1 admin, 2 gates with an entry and an exit camera each, and a few watchlist entries.
@@ -15,6 +16,7 @@ Demo logins (password = DEMO_PASSWORD, default "GateSense@123"):
 import argparse
 import random
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,7 @@ from app.core.config import Settings, get_settings
 from app.core.security import generate_device_key, hash_password
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
+from app.demo_history import FlatContacts, GateLanes, Lane, ResidentCar, add_history
 from app.models import (
     Device,
     Flat,
@@ -35,6 +38,7 @@ from app.models import (
     WatchlistEntry,
 )
 from app.models.enums import LaneDirection, ResidentType, UserRole, VehicleType
+from app.services import society_settings
 from app.services.plates import normalize_typed_plate
 
 RANDOM_SEED = 2026
@@ -164,6 +168,8 @@ class SeedSummary:
     gates: int = 0
     devices: int = 0
     watchlist: int = 0
+    history_visits: int = 0
+    history_gate_events: int = 0
     # Plaintext device keys, printed once so you can try device auth in /docs.
     device_keys: dict[str, str] = field(default_factory=dict)
 
@@ -205,7 +211,16 @@ async def is_seeded(db: AsyncSession) -> bool:
     return bool(await db.scalar(select(func.count()).select_from(Society)))
 
 
-async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
+async def seed(
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    history_days: int = 0,
+    now: datetime | None = None,
+    live: bool = False,
+) -> SeedSummary:
+    """Create the demo society. With `history_days`, also add that many days of past
+    (closed) visits and gate reads ending at `now`; see app/demo_history.py."""
     rng = random.Random(RANDOM_SEED)  # noqa: S311 - demo data, not security
     summary = SeedSummary()
     # One hash for every demo account: they share the published demo password anyway,
@@ -227,9 +242,10 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
         )
 
     db.add(user("Anil Mehta", DEMO_ADMIN_EMAIL, UserRole.ADMIN))
-    for name, email in GUARDS:
-        db.add(user(name, email, UserRole.GUARD))
-        summary.guards += 1
+    guards = [user(name, email, UserRole.GUARD) for name, email in GUARDS]
+    db.add_all(guards)
+    summary.guards = len(guards)
+    residents_by_flat: dict[int, list[User]] = {}
 
     flats = [
         Flat(
@@ -275,9 +291,11 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
                 kind = ResidentType.TENANT if is_rented else ResidentType.OWNER
             else:
                 kind = ResidentType.FAMILY
+            resident_user = user(f"{first} {surname}", email, UserRole.RESIDENT)
+            residents_by_flat.setdefault(index, []).append(resident_user)
             db.add(
                 Resident(
-                    user=user(f"{first} {surname}", email, UserRole.RESIDENT),
+                    user=resident_user,
                     flat=flat,
                     resident_type=kind,
                     is_primary_contact=position == 0,
@@ -287,6 +305,7 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
 
     # Two vehicles per flat on average: 80 in total.
     used_plates: set[str] = set()
+    vehicles: list[Vehicle] = []
     vehicle_counts = [2] * len(flats)
     for _ in range(len(flats) // 4):  # move some vehicles between flats: 1 to 3 each
         vehicle_counts[rng.randrange(len(flats))] -= 1
@@ -299,7 +318,7 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
             if plate in used_plates:
                 continue
             used_plates.add(plate)
-            db.add(
+            vehicles.append(
                 Vehicle(
                     society_id=society.id,
                     flat=flat,
@@ -312,8 +331,10 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
                     colour=rng.choice(COLOURS),
                 )
             )
-            summary.vehicles += 1
+    db.add_all(vehicles)
+    summary.vehicles = len(vehicles)
 
+    lanes: dict[str, dict[LaneDirection, Device]] = {}
     for gate_name, location in [
         ("Main Gate", "Sector 150 main road, towards the expressway"),
         ("Service Gate", "Rear side, near Block D; deliveries and staff"),
@@ -324,15 +345,15 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
         for direction in (LaneDirection.ENTRY, LaneDirection.EXIT):
             key = generate_device_key()
             device_name = f"{gate_name} - {direction.value} camera"
-            db.add(
-                Device(
-                    gate=gate,
-                    name=device_name,
-                    direction=direction,
-                    api_key_hash=key.hash,
-                    api_key_prefix=key.prefix,
-                )
+            device = Device(
+                gate=gate,
+                name=device_name,
+                direction=direction,
+                api_key_hash=key.hash,
+                api_key_prefix=key.prefix,
             )
+            db.add(device)
+            lanes.setdefault(gate_name, {})[direction] = device
             summary.devices += 1
             summary.device_keys[device_name] = key.plaintext
 
@@ -340,11 +361,59 @@ async def seed(db: AsyncSession, settings: Settings) -> SeedSummary:
         db.add(WatchlistEntry(society_id=society.id, plate_normalized=plate, reason=reason))
         summary.watchlist += 1
 
+    if history_days:
+        await db.flush()  # assign ids
+
+        def make_plate(*, two_wheeler: bool) -> str:
+            while True:
+                kind = VehicleType.TWO_WHEELER if two_wheeler else VehicleType.CAR
+                plate = normalize_typed_plate(_plate(rng, kind))
+                if plate not in used_plates:
+                    used_plates.add(plate)
+                    return plate
+
+        def gate_lanes(name: str) -> GateLanes:
+            entry, exit_ = lanes[name][LaneDirection.ENTRY], lanes[name][LaneDirection.EXIT]
+            return GateLanes(
+                entry=Lane(entry.gate_id, entry.id), exit=Lane(exit_.gate_id, exit_.id)
+            )
+
+        history = await add_history(
+            db,
+            society_id=society.id,
+            rng=rng,
+            now=now or datetime.now(UTC),
+            days=history_days,
+            limits=society_settings.defaults(settings),
+            flats=[
+                FlatContacts(flat.id, [u.id for u in residents_by_flat[i]])
+                for i, flat in enumerate(flats)
+            ],
+            guard_ids=[guard.id for guard in guards],
+            residents_cars=[
+                ResidentCar(v.id, v.plate_normalized, v.plate_normalized) for v in vehicles
+            ],
+            main_gate=gate_lanes("Main Gate"),
+            service_gate=gate_lanes("Service Gate"),
+            make_plate=make_plate,
+            live=live,
+            focus_flat=next(
+                FlatContacts(flat.id, [u.id for u in residents_by_flat[i]])
+                for i, flat in enumerate(flats)
+                if (flat.block, flat.number) == DEMO_RESIDENT_FLAT
+            ),
+        )
+        summary.history_visits = history.visits
+        summary.history_gate_events = history.gate_events
+
     await db.commit()
     return summary
 
 
-async def _main(reset: bool) -> None:
+HISTORY_DAYS = 14
+
+
+async def _main(reset: bool, history_days: int) -> None:
     settings = get_settings()
     async with SessionLocal() as db:
         if reset:
@@ -355,7 +424,7 @@ async def _main(reset: bool) -> None:
         elif await is_seeded(db):
             print("Database already has data; nothing to do. Use --reset to start over.")
             return
-        summary = await seed(db, settings)
+        summary = await seed(db, settings, history_days=history_days, live=history_days > 0)
     await engine.dispose()
 
     print(
@@ -363,6 +432,11 @@ async def _main(reset: bool) -> None:
         f"{summary.vehicles} vehicles, {summary.guards} guards, {summary.gates} gates, "
         f"{summary.devices} devices, {summary.watchlist} watchlist entries."
     )
+    if history_days:
+        print(
+            f"Demo history: {summary.history_visits} past visits and "
+            f"{summary.history_gate_events} gate reads over {history_days} days (made-up data)."
+        )
     print(f"\nDemo logins (password: {settings.demo_password})")
     for email in (DEMO_ADMIN_EMAIL, DEMO_GUARD_EMAIL, DEMO_RESIDENT_EMAIL):
         print(f"  {email}")
@@ -374,7 +448,13 @@ async def _main(reset: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed GateSense with demo data.")
     parser.add_argument("--reset", action="store_true", help="empty every table first")
-    event_loop.run(_main(parser.parse_args().reset))
+    parser.add_argument(
+        "--no-history",
+        action="store_true",
+        help=f"skip the {HISTORY_DAYS} days of made-up past visits for the dashboard",
+    )
+    args = parser.parse_args()
+    event_loop.run(_main(args.reset, 0 if args.no_history else HISTORY_DAYS))
 
 
 if __name__ == "__main__":
