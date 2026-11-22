@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { adminGet, cameraKey, fixture, pageAs, sendRead } from './helpers'
+import { adminGet, cameraKey, fixture, pageAs, sendRead } from './helpers.js'
 
 const unique = () => Math.random().toString(36).slice(2, 7).toUpperCase()
 
