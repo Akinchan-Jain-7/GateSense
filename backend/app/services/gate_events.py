@@ -404,6 +404,11 @@ async def _close_resident_entry(db: AsyncSession, exit_event: GateEvent, vehicle
 
     If the latest entry was already closed (or there is none), the exit stays unpaired:
     that's an "exit without entry" for the nightly reconciliation to report.
+
+    The entry row is locked (`FOR UPDATE`) before checking whether it's closed. Two exits
+    of the same car arriving together (two exit cameras) would otherwise both see it open
+    and both pair with it; with the lock, the second waits for the first to commit, then
+    sees it closed. (Found by the Phase 7 load test, see docs/performance.md.)
     """
     latest_entry = await db.scalar(
         select(GateEvent)
@@ -415,6 +420,7 @@ async def _close_resident_entry(db: AsyncSession, exit_event: GateEvent, vehicle
         )
         .order_by(GateEvent.captured_at.desc())
         .limit(1)
+        .with_for_update()
     )
     if latest_entry is None:
         return
