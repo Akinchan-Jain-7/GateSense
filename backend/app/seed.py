@@ -212,7 +212,12 @@ async def is_seeded(db: AsyncSession) -> bool:
 
 
 async def seed(
-    db: AsyncSession, settings: Settings, *, history_days: int = 0, now: datetime | None = None
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    history_days: int = 0,
+    now: datetime | None = None,
+    live: bool = False,
 ) -> SeedSummary:
     """Create the demo society. With `history_days`, also add that many days of past
     (closed) visits and gate reads ending at `now`; see app/demo_history.py."""
@@ -391,6 +396,7 @@ async def seed(
             main_gate=gate_lanes("Main Gate"),
             service_gate=gate_lanes("Service Gate"),
             make_plate=make_plate,
+            live=live,
         )
         summary.history_visits = history.visits
         summary.history_gate_events = history.gate_events
@@ -413,7 +419,7 @@ async def _main(reset: bool, history_days: int) -> None:
         elif await is_seeded(db):
             print("Database already has data; nothing to do. Use --reset to start over.")
             return
-        summary = await seed(db, settings, history_days=history_days)
+        summary = await seed(db, settings, history_days=history_days, live=history_days > 0)
     await engine.dispose()
 
     print(

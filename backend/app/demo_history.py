@@ -21,12 +21,27 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Approval, GateEvent, Visit, Visitor, VisitStatusChange
+from app.models import (
+    Alert,
+    Approval,
+    EscalationTask,
+    GateEvent,
+    Notification,
+    Visit,
+    Visitor,
+    VisitStatusChange,
+)
 from app.models.enums import (
+    AlertKind,
+    AlertSeverity,
     ApprovalChannel,
     ApprovalStatus,
+    EscalationTaskStatus,
     LaneDirection,
     MatchResult,
+    NotificationChannel,
+    NotificationStatus,
+    ReviewReason,
     VisitCategory,
     VisitStatus,
     VisitTrigger,
@@ -155,7 +170,9 @@ class _Builder:
     # and the visits' entry/exit links are filled in last.
     events: list[GateEvent] = field(default_factory=list)
     status_changes: list[VisitStatusChange] = field(default_factory=list)
-    links: list[tuple[Visit, GateEvent, GateEvent]] = field(default_factory=list)
+    others: list[object] = field(default_factory=list)  # rows that need visits/events first
+    last_read: dict[str, GateEvent] = field(default_factory=dict)  # resident plate -> read
+    links: list[tuple[Visit, GateEvent, GateEvent | None]] = field(default_factory=list)
 
     def event(
         self,
@@ -191,6 +208,8 @@ class _Builder:
         )
         self.events.append(event)
         self.summary.gate_events += 1
+        if match == MatchResult.RESIDENT:
+            self.last_read[plate] = event
         return event
 
     def at(self, day: date, weights: list[int]) -> datetime:
@@ -228,8 +247,11 @@ async def add_history(
     main_gate: GateLanes,
     service_gate: GateLanes,
     make_plate: PlateMaker,
+    live: bool = False,
 ) -> HistorySummary:
-    """Add `days` days of closed visits and resident movements ending at `now`."""
+    """Add `days` days of closed visits and resident movements ending at `now`.
+
+    With `live`, also set up a believable "right now" at the gate (see _current_state)."""
     b = _Builder(db, society_id, rng, now)
     today = now.astimezone(IST).date()
     first_day = today - timedelta(days=days)
@@ -298,12 +320,17 @@ async def add_history(
                 )
 
     _resident_movements(b, residents_cars, first_day, days, main_gate, service_gate)
+    if live:
+        _current_state(b, limits, flats, guard_ids, residents_cars, main_gate, make_plate, guests)
     await db.flush()  # visitors, visits and approvals first
     db.add_all(b.status_changes)
     db.add_all(b.events)
     await db.flush()
+    db.add_all(b.others)
+    await db.flush()
     for visit, entry, leave in b.links:
-        visit.entry_event_id, visit.exit_event_id = entry.id, leave.id
+        visit.entry_event_id = entry.id
+        visit.exit_event_id = leave.id if leave is not None else None
     return b.summary
 
 
@@ -490,6 +517,312 @@ def _resident_movements(
                 car.plate_raw,
                 car.plate,
                 in_at,
+                MatchResult.RESIDENT,
+                vehicle_id=car.vehicle_id,
+            )
+
+
+def _current_state(
+    b: _Builder,
+    limits: VisitLimits,
+    flats: list[FlatContacts],
+    guard_ids: list[uuid.UUID],
+    cars: list[ResidentCar],
+    lanes: GateLanes,
+    make_plate: PlateMaker,
+    guests: list[_Person],
+) -> None:
+    """A few things happening at the gate right now, so the guard console isn't empty
+    when the demo opens: visitors inside (one long overdue, with a call task for the
+    guard), a resident deciding, a request nobody answered, a watchlist alert, a plate the
+    camera wasn't sure about, an unknown car, and residents coming and going.
+
+    Every row matches what the real services would have written, including the ladder's
+    emails (recorded as already sent), so the escalation job doesn't repeat any step."""
+    rng, now = b.rng, b.now
+    guard_id = guard_ids[0]
+    people = iter(rng.sample(guests, k=6))
+
+    def mins(n: float) -> datetime:
+        return now - timedelta(minutes=n)
+
+    def open_visit(
+        person: _Person,
+        category: VisitCategory,
+        status: VisitStatus,
+        *,
+        requested: datetime,
+        entered: datetime | None = None,
+        plate: str | None = None,
+    ) -> tuple[Visit, FlatContacts]:
+        flat = rng.choice(flats)
+        visitor = Visitor(
+            id=uuid.uuid4(), society_id=b.society_id, full_name=person.name, phone=person.phone
+        )
+        b.db.add(visitor)
+        visit = Visit(
+            id=uuid.uuid4(),
+            society_id=b.society_id,
+            flat_id=flat.flat_id,
+            visitor_id=visitor.id,
+            plate_normalized=plate,
+            category=category,
+            purpose=person.purpose,
+            status=status,
+            registered_by_id=guard_id,
+            created_at=requested,
+        )
+        if entered is not None:
+            visit.entered_at = entered
+            visit.expected_exit_at = entered + limits.for_category(category)
+        b.db.add(visit)
+        b.status_changes.append(
+            VisitStatusChange(
+                visit_id=visit.id,
+                from_status=None,
+                to_status=VisitStatus.PENDING_APPROVAL,
+                changed_at=requested,
+                actor_id=guard_id,
+            )
+        )
+        return visit, flat
+
+    def approve(visit: Visit, flat: FlatContacts, requested: datetime, decided: datetime) -> None:
+        decider = flat.resident_ids[0]
+        visit.approved_by_id = decider
+        b.db.add(
+            Approval(
+                visit_id=visit.id,
+                status=ApprovalStatus.APPROVED,
+                requested_at=requested,
+                expires_at=requested + limits.approval_timeout,
+                decided_at=decided,
+                decided_by_id=decider,
+                channel=ApprovalChannel.WEB,
+            )
+        )
+        b.status_changes.append(
+            VisitStatusChange(
+                visit_id=visit.id,
+                from_status=VisitStatus.PENDING_APPROVAL,
+                to_status=VisitStatus.APPROVED,
+                trigger=VisitTrigger.APPROVE,
+                changed_at=decided,
+            )
+        )
+
+    def enter(visit: Visit, at: datetime) -> None:
+        b.status_changes.append(
+            VisitStatusChange(
+                visit_id=visit.id,
+                from_status=VisitStatus.APPROVED,
+                to_status=VisitStatus.INSIDE,
+                trigger=VisitTrigger.ENTER,
+                changed_at=at,
+                actor_id=guard_id,
+            )
+        )
+        if visit.plate_normalized:
+            event = b.event(
+                lanes.entry,
+                LaneDirection.ENTRY,
+                visit.plate_normalized,
+                visit.plate_normalized,
+                at,
+                MatchResult.VISITOR,
+                visit_id=visit.id,
+            )
+            b.links.append((visit, event, None))
+
+    # Inside, plenty of time left; and a delivery close to its limit.
+    for person, category, minutes_in in (
+        (next(people), VisitCategory.GUEST, 50),
+        (next(people), VisitCategory.DELIVERY, 14),
+    ):
+        plate = make_plate(two_wheeler=category == VisitCategory.DELIVERY)
+        if category == VisitCategory.DELIVERY:
+            person = _Person(person.name, person.phone, rng.choice(DELIVERY_RIDERS)[1], None)
+        visit, flat = open_visit(
+            person,
+            category,
+            VisitStatus.INSIDE,
+            requested=mins(minutes_in + 2),
+            entered=mins(minutes_in),
+            plate=plate,
+        )
+        approve(visit, flat, mins(minutes_in + 2), mins(minutes_in + 1))
+        enter(visit, mins(minutes_in))
+        b.summary.visits += 1
+
+    # Long overdue: the ladder already emailed twice and opened a call task.
+    plate = make_plate(two_wheeler=False)
+    limit_minutes = limits.for_category(VisitCategory.GUEST).total_seconds() / 60
+    entered = mins(limit_minutes + 75)
+    visit, flat = open_visit(
+        next(people),
+        VisitCategory.GUEST,
+        VisitStatus.ESCALATED,
+        requested=entered - timedelta(minutes=2),
+        entered=entered,
+        plate=plate,
+    )
+    approve(visit, flat, entered - timedelta(minutes=2), entered - timedelta(minutes=1))
+    enter(visit, entered)
+    due = entered + limits.for_category(VisitCategory.GUEST)
+    for from_status, to_status, trigger, at in (
+        (VisitStatus.INSIDE, VisitStatus.OVERSTAYED, VisitTrigger.OVERSTAY, due),
+        (
+            VisitStatus.OVERSTAYED,
+            VisitStatus.ESCALATED,
+            VisitTrigger.ESCALATE,
+            due + timedelta(minutes=60),
+        ),
+    ):
+        b.status_changes.append(
+            VisitStatusChange(
+                visit_id=visit.id,
+                from_status=from_status,
+                to_status=to_status,
+                trigger=trigger,
+                changed_at=at,
+            )
+        )
+    b.others.append(
+        EscalationTask(
+            visit_id=visit.id,
+            status=EscalationTaskStatus.OPEN,
+            created_at=due + timedelta(minutes=60),
+        )
+    )
+    for step, at in (("overstay_notice", due), ("overstay_reminder", due + timedelta(minutes=30))):
+        for user_id in flat.resident_ids:
+            b.others.append(
+                Notification(
+                    society_id=b.society_id,
+                    channel=NotificationChannel.EMAIL,
+                    kind=step,
+                    recipient="(demo history)",
+                    user_id=user_id,
+                    visit_id=visit.id,
+                    status=NotificationStatus.SENT,
+                    attempts=1,
+                    sent_at=at,
+                    created_at=at,
+                    idempotency_key=f"visit:{visit.id}:{step}:resident:{user_id}",
+                )
+            )
+    b.summary.visits += 1
+
+    # At the gate: the camera read an unknown car, the guard registered the driver, and
+    # the flat has a couple of minutes left to answer.
+    plate = make_plate(two_wheeler=False)
+    visit, flat = open_visit(
+        next(people),
+        VisitCategory.CAB,
+        VisitStatus.PENDING_APPROVAL,
+        requested=mins(0.7),
+        plate=plate,
+    )
+    b.event(
+        lanes.entry,
+        LaneDirection.ENTRY,
+        plate,
+        plate,
+        mins(1.2),
+        MatchResult.UNKNOWN,
+        visit_id=visit.id,
+    )
+    b.db.add(
+        Approval(
+            visit_id=visit.id,
+            status=ApprovalStatus.PENDING,
+            requested_at=mins(0.7),
+            expires_at=mins(0.7) + limits.approval_timeout,
+        )
+    )
+
+    # Nobody at the flat answered: the guard decides.
+    visit, flat = open_visit(
+        next(people), VisitCategory.GUEST, VisitStatus.PENDING_APPROVAL, requested=mins(7)
+    )
+    b.db.add(
+        Approval(
+            visit_id=visit.id,
+            status=ApprovalStatus.TIMED_OUT,
+            requested_at=mins(7),
+            expires_at=mins(7) + limits.approval_timeout,
+            decided_at=mins(7) + limits.approval_timeout,
+            channel=ApprovalChannel.GUARD,
+        )
+    )
+
+    # Approved, walking in (no vehicle).
+    visit, flat = open_visit(
+        next(people), VisitCategory.GUEST, VisitStatus.APPROVED, requested=mins(4)
+    )
+    approve(visit, flat, mins(4), mins(3))
+
+    # A watchlisted car came to the gate, the camera wasn't sure about one plate, and an
+    # unknown car is waiting for the guard.
+    watch = b.event(
+        lanes.entry, LaneDirection.ENTRY, "HR26DK8337", "HR26DK8337", mins(9), MatchResult.WATCHLIST
+    )
+    b.others.append(
+        Alert(
+            society_id=b.society_id,
+            kind=AlertKind.WATCHLIST,
+            severity=AlertSeverity.HIGH,
+            message=(
+                "Watchlisted vehicle HR26DK8337 is entering: Reported for rash driving "
+                "inside the society; entry needs admin approval"
+            ),
+            gate_event_id=watch.id,
+            created_at=mins(9),
+        )
+    )
+    unsure = make_plate(two_wheeler=False)
+    review = b.event(
+        lanes.entry,
+        LaneDirection.ENTRY,
+        unsure.replace("0", "O", 1),
+        unsure,
+        mins(5),
+        MatchResult.LOW_CONFIDENCE,
+    )
+    review.confidence, review.needs_review, review.review_reason = (
+        0.62,
+        True,
+        ReviewReason.LOW_CONFIDENCE,
+    )
+    review.ocr_fixes = 1 if "0" in unsure else 0
+    stranger = make_plate(two_wheeler=True)
+    b.event(lanes.entry, LaneDirection.ENTRY, stranger, stranger, mins(2), MatchResult.UNKNOWN)
+
+    # Residents coming and going in the last half hour (the opposite of each car's last
+    # read, so entries and exits keep alternating).
+    for car in rng.sample(cars, k=6):
+        last = b.last_read.get(car.plate)
+        at = mins(rng.uniform(3, 30))
+        if last is not None and last.captured_at >= at:
+            continue
+        if last is not None and last.direction == LaneDirection.ENTRY:
+            b.event(
+                lanes.exit,
+                LaneDirection.EXIT,
+                car.plate,
+                car.plate,
+                at,
+                MatchResult.RESIDENT,
+                vehicle_id=car.vehicle_id,
+                paired_event_id=last.id,
+            )
+        else:
+            b.event(
+                lanes.entry,
+                LaneDirection.ENTRY,
+                car.plate,
+                car.plate,
+                at,
                 MatchResult.RESIDENT,
                 vehicle_id=car.vehicle_id,
             )

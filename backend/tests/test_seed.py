@@ -1,11 +1,23 @@
 from datetime import UTC, datetime, timedelta
 
 import httpx2
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.models import Device, Flat, GateEvent, ReconciliationFlag, Resident, User, Vehicle, Visit
+from app.models import (
+    Alert,
+    Device,
+    EscalationTask,
+    Flat,
+    GateEvent,
+    ReconciliationFlag,
+    Resident,
+    User,
+    Vehicle,
+    Visit,
+)
 from app.models.enums import LaneDirection, MatchResult, UserRole, VisitStatus
 from app.seed import (
     DEMO_ADMIN_EMAIL,
@@ -15,7 +27,7 @@ from app.seed import (
     reset_database,
     seed,
 )
-from app.services import analytics, reconciliation
+from app.services import analytics, escalation, reconciliation
 from app.services.plates import is_valid_plate
 
 
@@ -119,3 +131,23 @@ async def test_history_is_the_same_every_run(db: AsyncSession) -> None:
         second.history_visits,
         second.history_gate_events,
     )
+
+
+async def test_live_state_is_consistent_and_quiet(db: AsyncSession, redis_client: Redis) -> None:
+    """The "right now" demo state gives the console something to show, but the scheduled
+    jobs find nothing to do: no repeated emails, no new tasks, no reconciliation flags."""
+    settings = get_settings()
+    now = datetime.now(UTC)
+    await seed(db, settings, history_days=2, now=now, live=True)
+
+    statuses = {v.status for v in (await db.scalars(select(Visit))).all()}
+    assert {VisitStatus.INSIDE, VisitStatus.ESCALATED, VisitStatus.PENDING_APPROVAL} <= statuses
+    assert await count(db, EscalationTask) == 1
+    assert await count(db, Alert) == 1
+    reviews = await db.scalar(select(func.count()).where(GateEvent.needs_review.is_(True)))
+    assert reviews == 1
+
+    ladder = await escalation.run_ladder(db, redis_client, settings, now=now)
+    assert (ladder.overstayed, ladder.emails_queued, ladder.escalated) == (0, 0, 0)
+    await reconciliation.reconcile(db, settings, now=now)
+    assert await count(db, ReconciliationFlag) == 0

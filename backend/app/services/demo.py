@@ -28,8 +28,9 @@ def require_demo_mode(settings: Settings) -> None:
 async def reset(
     db: AsyncSession, settings: Settings, admin: User, *, now: datetime
 ) -> seed.SeedSummary:
-    """Wipe everything and seed again, with fresh history ending now. Every session ends:
+    """Wipe everything and seed again, with fresh history ending now and a few things
+    happening at the gate right now. Every session ends:
     the users are recreated with new ids, so old tokens no longer match anyone."""
     require_demo_mode(settings)
     await seed.reset_database(db)
-    return await seed.seed(db, settings, history_days=seed.HISTORY_DAYS, now=now)
+    return await seed.seed(db, settings, history_days=seed.HISTORY_DAYS, now=now, live=True)
