@@ -153,6 +153,9 @@ async def ingest_read(
         device_id=device.id,
         direction=device.direction,
         plate_raw=read.plate_text[:32],
+        # Set now so the INSERT carries them (apply_match sets the same values).
+        plate_normalized=reading.plate if reading else None,
+        ocr_fixes=reading.fixes if reading else 0,
         confidence=read.confidence,
         captured_at=captured_at,
         event_hash=fingerprint,
@@ -164,6 +167,8 @@ async def ingest_read(
         event.snapshot_path = snapshot_key(event, extension)
         await storage.save(event.snapshot_path, read.snapshot, content_type)
     try:
+        # INSERT inside a savepoint: the unique event_hash catches a copy of this read
+        # arriving at the same moment, and only the savepoint is rolled back.
         async with db.begin_nested():
             db.add(event)
     except IntegrityError:
@@ -200,8 +205,9 @@ async def _publish(db: AsyncSession, redis: Redis, event: GateEvent) -> None:
     console = [realtime.console_channel(event.society_id)]
     read = GateEventRead.model_validate(event)
     await realtime.publish(redis, console, "gate_event.created", read)
-    for alert in await db.scalars(select(Alert).where(Alert.gate_event_id == event.id)):
-        await realtime.publish(redis, console, "alert.created", AlertRead.model_validate(alert))
+    if event.match_result is MatchResult.WATCHLIST:  # the only reads that raise an alert
+        for alert in await db.scalars(select(Alert).where(Alert.gate_event_id == event.id)):
+            await realtime.publish(redis, console, "alert.created", AlertRead.model_validate(alert))
     if event.visit_id is not None:
         visit = await visitors.load_visit(db, event.visit_id)
         await visitors.publish_visit(redis, db, visit, "visit.updated")
@@ -251,7 +257,7 @@ async def apply_match(
         return
 
     known = await _known_plates(db, settings, event)
-    closest = closest_plates(reading.plate, known, settings.plate_fuzzy_max_distance)
+    closest = closest_plates(reading.plate, known.keys(), settings.plate_fuzzy_max_distance)
     if closest is None:
         event.match_result = MatchResult.UNKNOWN
         return
@@ -262,18 +268,19 @@ async def apply_match(
         return
 
     event.match_distance = closest.distance
-    match = known[plate]
-    if isinstance(match, Vehicle):
+    kind, match_id = known[plate]
+    if kind is Vehicle:
         event.match_result = MatchResult.RESIDENT
-        event.vehicle_id = match.id
+        event.vehicle_id = match_id
         if event.direction is LaneDirection.EXIT:
-            await _close_resident_entry(db, event, match)
-    elif isinstance(match, GuestPass):
+            await _close_resident_entry(db, event, match_id)
+    elif kind is GuestPass:
+        guest_pass = await db.get_one(GuestPass, match_id)
         event.match_result = MatchResult.GUEST_PASS
         visit = await guest_passes.admit_with_pass(
             db,
             settings,
-            match,
+            guest_pass,
             at=event.captured_at,
             plate=event.plate_normalized,
             gate_event_id=event.id,
@@ -281,6 +288,7 @@ async def apply_match(
         )
         event.visit_id = visit.id
     else:
+        match = await db.get_one(Visit, match_id)
         event.match_result = MatchResult.VISITOR
         event.visit_id = match.id
         trigger = (
@@ -351,22 +359,29 @@ def _length_near(
     return func.length(column).between(len(plate) - max_distance, len(plate) + max_distance)
 
 
+type Candidate = tuple[type[Vehicle] | type[Visit] | type[GuestPass], uuid.UUID]
+
+
 async def _known_plates(
     db: AsyncSession, settings: Settings, event: GateEvent
-) -> dict[str, Vehicle | Visit | GuestPass]:
+) -> dict[str, Candidate]:
     """Plates this read could belong to: resident vehicles, visits expecting this lane, and
     (at the entry lane) guest passes valid at the capture time.
 
     At the entry lane, approved visits waiting to arrive; at the exit lane, visits whose
     vehicle is inside. A resident vehicle wins if a visit has the same plate.
+
+    Only (plate, id) pairs are fetched, not whole rows: every read compares against every
+    plausible plate in the society, and building hundreds of ORM objects per read was the
+    biggest CPU cost in the Phase 7 load test. The one winner is loaded afterwards.
     """
     plate = event.plate_normalized or ""
     max_distance = settings.plate_fuzzy_max_distance
     wanted = (
         {VisitStatus.APPROVED} if event.direction is LaneDirection.ENTRY else set(INSIDE_STATUSES)
     )
-    visits = await db.scalars(
-        select(Visit)
+    visits = await db.execute(
+        select(Visit.plate_normalized, Visit.id)
         .where(
             Visit.society_id == event.society_id,
             Visit.status.in_(wanted),
@@ -376,30 +391,32 @@ async def _known_plates(
         # Oldest first, so the newest visit for a plate overwrites older ones below.
         .order_by(Visit.created_at)
     )
-    vehicles = await db.scalars(
-        select(Vehicle).where(
+    vehicles = await db.execute(
+        select(Vehicle.plate_normalized, Vehicle.id).where(
             Vehicle.society_id == event.society_id,
             Vehicle.is_active.is_(True),
             _length_near(Vehicle.plate_normalized, plate, max_distance),
         )
     )
-    known: dict[str, Vehicle | Visit | GuestPass] = {}
+    known: dict[str, Candidate] = {}
     if event.direction is LaneDirection.ENTRY:
         # Lowest priority first: a guest pass, then an expected visit, then a resident's car.
         for guest_pass in await guest_passes.plate_passes(
             db, event.society_id, plate, event.captured_at, max_distance
         ):
             if guest_pass.plate_normalized:
-                known[guest_pass.plate_normalized] = guest_pass
-    for visit in visits:
-        if visit.plate_normalized:
-            known[visit.plate_normalized] = visit
-    for vehicle in vehicles:
-        known[vehicle.plate_normalized] = vehicle
+                known[guest_pass.plate_normalized] = (GuestPass, guest_pass.id)
+    for visit_plate, visit_id in visits:
+        if visit_plate:
+            known[visit_plate] = (Visit, visit_id)
+    for vehicle_plate, vehicle_id in vehicles:
+        known[vehicle_plate] = (Vehicle, vehicle_id)
     return known
 
 
-async def _close_resident_entry(db: AsyncSession, exit_event: GateEvent, vehicle: Vehicle) -> None:
+async def _close_resident_entry(
+    db: AsyncSession, exit_event: GateEvent, vehicle_id: uuid.UUID
+) -> None:
     """Pair an EXIT with the vehicle's latest ENTRY, if that entry is still open.
 
     If the latest entry was already closed (or there is none), the exit stays unpaired:
@@ -413,7 +430,7 @@ async def _close_resident_entry(db: AsyncSession, exit_event: GateEvent, vehicle
     latest_entry = await db.scalar(
         select(GateEvent)
         .where(
-            GateEvent.vehicle_id == vehicle.id,
+            GateEvent.vehicle_id == vehicle_id,
             GateEvent.direction == LaneDirection.ENTRY,
             GateEvent.captured_at <= exit_event.captured_at,
             GateEvent.id != exit_event.id,
