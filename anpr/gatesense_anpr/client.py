@@ -5,7 +5,7 @@ server has a problem.
   Retrying is safe because the server is idempotent: the same read (device, text,
   capture time) is stored once and returned with `status: duplicate` (ADR-0006).
 - Other 4xx (bad key, invalid data): don't retry; raise `GateEventRejectedError`.
-Buffering reads on disk while the server is down for longer is Phase 7 (offline mode).
+Reads that still can't be delivered go to the offline buffer (buffer.py).
 """
 
 import logging
@@ -28,6 +28,11 @@ class GateEventRejectedError(Exception):
         super().__init__(f"API rejected the read ({status_code}): {detail}")
         self.status_code = status_code
         self.detail = detail
+
+    @property
+    def retryable(self) -> bool:
+        """429 or 5xx: the server is busy or broken, not the read. Try again later."""
+        return self.status_code in RETRY_STATUSES
 
 
 class GateEventClient:

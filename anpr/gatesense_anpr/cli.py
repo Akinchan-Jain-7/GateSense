@@ -18,6 +18,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable
 
+from gatesense_anpr.buffer import BufferedSender, OfflineBuffer
 from gatesense_anpr.client import GateEventClient, GateEventRejectedError
 from gatesense_anpr.config import AnprSettings
 from gatesense_anpr.models import PlateRead
@@ -56,9 +57,30 @@ def describe(read: PlateRead) -> str:
     )
 
 
-def build_sink(args: argparse.Namespace, settings: AnprSettings) -> Callable[[PlateRead], None]:
+def print_result(read: PlateRead, result: dict[str, object]) -> None:
+    event = result.get("event")
+    event = event if isinstance(event, dict) else {}
+    print(
+        f"{read.plate_text:<12} -> {result.get('status')!s:<9} "
+        f"{event.get('plate_normalized')} {event.get('match_result')}",
+        flush=True,
+    )
+
+
+class Sink:
+    """Where reads go: printed (--dry-run), sent directly, or sent through the buffer."""
+
+    def __init__(self, deliver: Callable[[PlateRead], None], finish: Callable[[], None]) -> None:
+        self.deliver = deliver
+        self.finish = finish
+
+    def __call__(self, read: PlateRead) -> None:
+        self.deliver(read)
+
+
+def build_sink(args: argparse.Namespace, settings: AnprSettings) -> Sink:
     if args.dry_run:
-        return lambda read: print(describe(read), flush=True)
+        return Sink(lambda read: print(describe(read), flush=True), lambda: None)
     if settings.device_key is None:
         raise SystemExit("Set ANPR_DEVICE_KEY (the camera's device key) or use --dry-run.")
     client = GateEventClient(
@@ -68,20 +90,37 @@ def build_sink(args: argparse.Namespace, settings: AnprSettings) -> Callable[[Pl
         max_retries=settings.max_retries,
     )
 
-    def send(read: PlateRead) -> None:
-        try:
-            result = client.send(read)
-        except GateEventRejectedError as exc:
-            logger.error("%s", exc)
-            return
-        event = result.get("event") or {}
-        print(
-            f"{read.plate_text:<12} -> {result['status']:<9} "
-            f"{event.get('plate_normalized')} {event.get('match_result')}",
-            flush=True,
-        )
+    if settings.buffer_path is None or str(settings.buffer_path) == "":
 
-    return send
+        def send(read: PlateRead) -> None:
+            try:
+                print_result(read, client.send(read))
+            except GateEventRejectedError as exc:
+                logger.error("%s", exc)
+
+        return Sink(send, client.close)
+
+    buffer = OfflineBuffer(settings.buffer_path)
+    sender = BufferedSender(client, buffer, on_sent=print_result)
+    if len(buffer):
+        logger.info("%d read(s) waiting from last time; sending them first", len(buffer))
+        sender.flush(force=True)
+
+    def finish() -> None:
+        left = sender.flush(force=True).remaining
+        if left:
+            logger.warning(
+                "%d read(s) still waiting in %s; they are sent on the next run",
+                left,
+                settings.buffer_path,
+            )
+        buffer.close()
+        client.close()
+
+    def deliver(read: PlateRead) -> None:
+        sender.send(read)
+
+    return Sink(deliver, finish)
 
 
 def reads_from_source(spec: str, settings: AnprSettings) -> Iterable[PlateRead]:
@@ -131,12 +170,14 @@ def main(argv: list[str] | None = None) -> int:
             sink(read)
             if args.realtime:
                 time.sleep(args.interval)
+        sink.finish()
         return 0
 
     count = 0
     for read in reads_from_source(args.source, settings):
         sink(read)
         count += 1
+    sink.finish()
     logger.info("done: %d plate(s)", count)
     return 0
 
