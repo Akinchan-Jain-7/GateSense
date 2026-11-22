@@ -33,4 +33,6 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=21, minute=30),
     },
     "retention-daily": {"task": "retention.daily", "schedule": crontab(hour=22, minute=0)},
+    # 22:30 UTC = 04:00 IST. Only resets anything when DEMO_MODE=true (the public demo).
+    "demo-reset-nightly": {"task": "demo.nightly_reset", "schedule": crontab(hour=22, minute=30)},
 }

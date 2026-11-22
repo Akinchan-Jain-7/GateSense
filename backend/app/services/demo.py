@@ -32,5 +32,22 @@ async def reset(
     happening at the gate right now. Every session ends:
     the users are recreated with new ids, so old tokens no longer match anyone."""
     require_demo_mode(settings)
+    return await _reseed(db, settings, now=now)
+
+
+async def nightly_reset(
+    db: AsyncSession, settings: Settings, *, now: datetime
+) -> seed.SeedSummary | None:
+    """The scheduled reset of the public demo (Celery Beat, every night): visitors to the
+    demo may have changed or deleted anything, so each day starts clean. Does nothing when
+    demo mode is off, so this job can never wipe a real society's data."""
+    if not settings.demo_mode:
+        return None
+    summary = await _reseed(db, settings, now=now)
+    await db.commit()
+    return summary
+
+
+async def _reseed(db: AsyncSession, settings: Settings, *, now: datetime) -> seed.SeedSummary:
     await seed.reset_database(db)
     return await seed.seed(db, settings, history_days=seed.HISTORY_DAYS, now=now, live=True)

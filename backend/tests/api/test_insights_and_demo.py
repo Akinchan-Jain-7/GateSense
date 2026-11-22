@@ -13,7 +13,9 @@ from app.core.config import get_settings
 from app.main import app
 from app.models import Device, Flat, GateEvent, Society, User, Visit, Visitor, VisitStatusChange
 from app.models.enums import LaneDirection, MatchResult, VisitCategory, VisitStatus, VisitTrigger
+from app.services import demo
 from app.services.analytics import IST
+from app.services.visitors import utcnow
 from tests import factories
 from tests.api.test_gate_events import post_read
 from tests.factories import auth_headers
@@ -307,3 +309,24 @@ async def test_reset_reseeds_with_history_and_signs_everyone_out(
     assert await db.scalar(select(func.count()).select_from(Visit)) >= body["history_visits"]
     # The old admin no longer exists, so the old token is useless.
     assert (await client.get("/api/v1/me", headers=auth_headers(admin))).status_code == 401
+
+
+async def test_nightly_reset_never_touches_a_real_society(db: AsyncSession, admin: User) -> None:
+    assert await demo.nightly_reset(db, get_settings(), now=utcnow()) is None
+    assert await db.scalar(select(func.count()).where(User.id == admin.id)) == 1
+
+
+async def test_nightly_reset_starts_the_demo_fresh(db: AsyncSession, admin: User) -> None:
+    settings = get_settings().model_copy(update={"demo_mode": True})
+    summary = await demo.nightly_reset(db, settings, now=utcnow())
+    assert summary is not None
+    assert summary.history_visits > 100
+    # Everyone was recreated with new ids.
+    assert await db.scalar(select(func.count()).where(User.id == admin.id)) == 0
+
+
+def test_the_nightly_reset_is_scheduled() -> None:
+    from app.workers.celery_app import celery_app
+
+    job = celery_app.conf.beat_schedule["demo-reset-nightly"]
+    assert job["task"] == "demo.nightly_reset"
