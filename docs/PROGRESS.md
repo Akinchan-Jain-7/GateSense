@@ -8,7 +8,7 @@ The agent updates this file at the start and end of every session.
 | 0 | Repo foundation | ✅ Done | [#1](https://github.com/Akinchan-Jain-7/GateSense/pull/1) |
 | 1 | Backend core, database, auth | ✅ Done | [#2](https://github.com/Akinchan-Jain-7/GateSense/pull/2) |
 | 2 | Gate event engine | ✅ Done | [#4](https://github.com/Akinchan-Jain-7/GateSense/pull/4) |
-| 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
+| 3 | ANPR ML pipeline | ✅ Done (detector trained on Kaggle; OCR comparison needs labelled photos) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
 | 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
 | 6 | Frontend (professional UI) | ✅ Done | [#9](https://github.com/Akinchan-Jain-7/GateSense/pull/9) |
@@ -111,7 +111,9 @@ before Phase 8 and 9 continue.
       CC0 Kaggle datasets for training, an Apache 2.0 set from a different source as the
       test set, exact duplicates and pre-cropped plates removed. The dataset builder was
       tested locally on fake data shaped like each source
-- [ ] Kaggle run finished; real detector numbers in `anpr/eval/results/`, README, ADR-0009
+- [x] Kaggle run finished: YOLOv8n chosen by the fixed rule; test mAP50 0.745 /
+      mAP50-95 0.384 on 354 photos from a separate dataset. Numbers in
+      `anpr/eval/results/detector_comparison.*`, the README and ADR-0009
 - [ ] CPU latency of the trained model (`eval/benchmark_detector.py`), model on a
       `models-v1` release
 - [x] **Accessibility:** axe-core WCAG 2.1 AA checks on 18 screens in both themes, phone
