@@ -122,6 +122,7 @@ Branch: `phase-9-polish`
       reach it, never user input. npm's "fix" downgrades the PWA plugin a major version, so
       it's accepted for now; revisit when Workbox updates
 - [x] Release notes drafted: `docs/release-notes-v1.0.0.md`
+- [x] Study guide `docs/learn/phase-9.md`
 - [ ] Tag `v1.0.0` and publish the release (after the owner's review; going live can follow)
 - [ ] Owner: record the demo video and GIF (`docs/demo-script.md`)
 
