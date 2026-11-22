@@ -79,7 +79,7 @@ services:
   # --- Application -----------------------------------------------------------
 
   backend:
-    build: ./backend
+    build: { context: ./backend, target: dev }
     environment: &backend-env
       # Inside the Compose network, services reach each other by service name.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gatesense}:${POSTGRES_PASSWORD:-gatesense_dev_password}@postgres:5432/${POSTGRES_DB:-gatesense}
@@ -124,7 +124,7 @@ services:
 
   # Background jobs (approval timeouts, Telegram messages; more in Phase 5).
   worker:
-    build: ./backend
+    build: { context: ./backend, target: dev }
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     environment: *backend-env
     volumes:
@@ -141,7 +141,7 @@ services:
   # Puts scheduled jobs on the queue: escalation + email dispatch every minute, nightly
   # reconciliation, daily retention purge. Exactly one beat process may run.
   beat:
-    build: ./backend
+    build: { context: ./backend, target: dev }
     command: celery -A app.workers.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     environment: *backend-env
     volumes:
@@ -151,7 +151,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build: { context: ./frontend, target: dev }
     environment:
       # The dev server forwards /api (and the WebSocket) to the backend container.
       VITE_API_PROXY: http://backend:8000
