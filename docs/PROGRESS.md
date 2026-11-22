@@ -11,12 +11,12 @@ The agent updates this file at the start and end of every session.
 | 3 | ANPR ML pipeline | ✅ Done (model accuracy pending owner Colab runs) | [#6](https://github.com/Akinchan-Jain-7/GateSense/pull/6) |
 | 4 | Visitors, approvals, guest passes, real time | ✅ Done | [#7](https://github.com/Akinchan-Jain-7/GateSense/pull/7) |
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
-| 6 | Frontend (professional UI) | 🟡 In review | #9 |
-| 7 | Hardening, offline mode, performance | ⚪ Not started | |
+| 6 | Frontend (professional UI) | ✅ Done | [#9](https://github.com/Akinchan-Jain-7/GateSense/pull/9) |
+| 7 | Hardening, offline mode, performance | 🟡 In review | #10 |
 | 8 | Docker and deployment | ⚪ Not started | |
 | 9 | Polish, docs, release | ⚪ Not started | |
 
-**Next up:** Phase 7 (hardening, offline mode, performance).
+**Next up:** Phase 8 (Docker and deployment). Needs the owner for hosting accounts.
 
 **Waiting on the owner:** run `anpr/notebooks/01_train_plate_detector.ipynb` and
 `02_evaluate_ocr.ipynb` in Colab (see the Phase 3 section).
@@ -37,6 +37,33 @@ The agent updates this file at the start and end of every session.
   whether to proceed. The owner studies the code after the build, not during it. Anything
   only the owner can do (Colab GPU runs, hosting accounts, secrets) is prepared and listed
   in the summary.
+
+## Phase 7: Hardening, offline mode, performance
+
+Branch: `phase-7-hardening`
+
+- [x] ANPR offline buffer (SQLite, WAL): ordered replay, new reads queue behind old ones,
+      backoff 5 s → 5 min, permanent rejections set aside, survives restarts; Docker volume
+- [x] Server-side dedup already in place (event hash); replays are safe
+- [x] Rate limits (Redis fixed window, fails open): login per IP and per account, cameras
+      per key; 429 + Retry-After
+- [x] Security headers on every response, strict CSP for API JSON, hashed CSP for the
+      visitor page, HSTS in production; CORS narrowed to used methods/headers
+- [x] Body size limits (1 MiB; snapshot + 64 KB for uploads), checked while streaming too
+- [x] Request ids (kept from proxies if sane) on every log line; Prometheus `/metrics`
+      (route templates, gate events, rate limits, open WebSockets), optional bearer token
+- [x] Plain ASGI middleware replaces BaseHTTPMiddleware
+- [x] Locust load test + repeatable benchmark; bottleneck found by measurement (CPU-bound,
+      ORM objects for every plate per read), fixed: 114.5 → 149.4 req/s (80 vehicles),
+      61.9 → 98.0 (500 vehicles); final build 159.1 req/s, p95 410 ms
+- [x] Load test found a pairing race (500): fixed with a row lock + a two-connection test
+- [x] Coverage thresholds in CI: backend 90 (now 96), ANPR 80 (now 87), frontend 55 lines
+      (now 63, up from 29)
+- [x] `docs/performance.md`, ADR-0013, `docs/learn/phase-7.md`, api.md, anpr README
+
+Notes for Phase 8: run uvicorn with `--proxy-headers --forwarded-allow-ips` behind the
+host's proxy (rate limits need the real client IP); set `METRICS_TOKEN`; add the web
+app's CSP in its static server.
 
 ## Phase 6: Frontend (professional UI)
 

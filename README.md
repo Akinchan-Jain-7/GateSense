@@ -27,6 +27,10 @@ TBD (deployed in Phase 8). One-click demo logins for Guard, Resident and Admin.
 - **Guest passes** that residents create ahead of time
 - **Escalation ladder** for overstaying vehicles: emails, then a call task for the guard
 - **Watchlist alerts**, a low-confidence review queue, analytics, and privacy controls
+- **Offline mode at the gate:** plate reads are buffered locally and replayed in order
+  when the internet comes back
+- **Hardened API:** rate limits, security headers, size limits, request ids in every log
+  line, Prometheus metrics
 
 Full scope: [CLAUDE.md §2](CLAUDE.md#2-feature-scope).
 
@@ -68,8 +72,8 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 | Plate detection mAP@0.5 | TBD (pending the Phase 3 Colab training run) |
 | End-to-end plate accuracy | TBD (pending the Phase 3 Colab runs) |
 | Plate detector latency on CPU (YOLOv8n, 1280x720) | 65 ms FP32 · 32 ms INT8 static, 2-core build machine ([details](anpr/eval/results/detector_latency.md)) |
-| Gate-event ingestion throughput / p95 | TBD (measured in Phase 7) |
-| Backend test coverage | 97% (355 tests, Phase 2); enforced in CI from Phase 7 |
+| Gate-event ingestion, one API process, 40 simulated cameras | 159 req/s, p95 410 ms; first bottleneck fixed: +30% (80 vehicles), +58% (500 vehicles) ([method and numbers](docs/performance.md)) |
+| Test coverage (enforced in CI) | backend 96% (499 tests, min 90%), ANPR 87% (min 80%), frontend 63% lines (min 55%) + 3 Playwright journeys |
 
 ## Tech stack
 
@@ -133,6 +137,7 @@ Architecture Decision Records live in [docs/adr/](docs/adr/):
 - [ADR-0010: Approvals, real time and background jobs](docs/adr/0010-approvals-real-time-and-background-jobs.md)
 - [ADR-0011: Escalation, notifications and scheduled jobs](docs/adr/0011-escalation-notifications-and-scheduled-jobs.md)
 - [ADR-0012: Frontend architecture and design system](docs/adr/0012-frontend-architecture.md)
+- [ADR-0013: Hardening, offline mode and observability](docs/adr/0013-hardening-and-observability.md)
 
 ## Testing
 

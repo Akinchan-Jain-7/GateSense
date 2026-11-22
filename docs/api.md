@@ -35,6 +35,15 @@ conventions and who may call what. It grows with each phase and is finalised in 
 4. For device auth, use **Authorize → X-Device-Key** with a key printed by the seed script and
    call `GET /api/v1/devices/me`, or send a plate read with `POST /api/v1/gate-events`.
 
+## Limits and headers
+
+- **Rate limits (429 + `Retry-After`):** login per client IP and per account, camera
+  uploads per device key (per minute; see `.env.example`).
+- **Body size (413):** 1 MiB for normal requests, snapshot size + 64 KB for camera uploads.
+- **Every response** carries `X-Request-ID` (send your own to trace a request through
+  the logs) and security headers (`nosniff`, `X-Frame-Options: DENY`, a strict CSP;
+  HSTS in production).
+
 ## Endpoints
 
 | Method and path | Admin | Guard | Resident | Notes |
@@ -84,6 +93,7 @@ conventions and who may call what. It grows with each phase and is finalised in 
 | `GET /demo` | – | – | – | Public. In demo mode: the demo accounts and password; otherwise `enabled: false` |
 | `POST /demo/reset` | ✅ | ❌ | ❌ | **Demo mode only** (404 otherwise): wipe and reseed with fresh history; signs everyone out |
 | `GET /public/visits/{token}` | – | – | – | **No login**: the visitor's signed link (also `/visit/{token}` as a page) |
+| `GET /metrics` | – | – | – | Prometheus metrics; needs `Authorization: Bearer <METRICS_TOKEN>` when that's set |
 | `GET /health` | – | – | – | Public liveness probe |
 | `GET /ready` | – | – | – | Public readiness probe (checks Postgres and Redis) |
 
