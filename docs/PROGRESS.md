@@ -29,8 +29,8 @@ bot token for one real end-to-end test, and a first run of the app on their own 
 Pick up here in the next session:
 
 1. **PR #11 (Phase 8):** 8 of 9 CI checks green after merging main (#12). The secret scan
-   failed on a false positive (`METRICS_TOKEN=` empty in `.env.prod.example`); a narrow
-   allowlist was pushed in `.gitleaks.toml`. Check that the scan is now green.
+   failed on a false positive (`METRICS_TOKEN=` empty in `.env.prod.example`); fixed with a
+   fingerprint in `.gitleaksignore`, and the scan is green again.
 2. **Kaggle detector training** (owner's account, notebook "GateSense 01 - plate detector
    training"): background versions queued for hours, so an **interactive** Run All was
    started at ~21:50 IST on GPU T4 x2 with all five datasets attached. Open
@@ -41,10 +41,9 @@ Pick up here in the next session:
    `eval/benchmark_detector.py` on the ONNX, publish the model on a `models-v1` release,
    fill the README accuracy rows and ADR-0009, and tick the two open items in "Closing the
    gaps" (follow-up PR from `main`).
-3. **Phase 8 still to do:** `docs/deployment.md` (hosting proposal: one VM running
-   `docker-compose.prod.yml`, Plan A Oracle Always Free Arm 2 OCPU/12 GB, Plan B a small
-   paid VPS; exact owner steps; env var and GitHub secret list), ADR-0014 (Proposed),
-   `docs/learn/phase-8.md`, PR #11 description, merge when green. Hosting waits on the owner.
+3. **Phase 8:** `docs/deployment.md`, ADR-0014 (Proposed) and `docs/learn/phase-8.md` are
+   written. Left: the PR #11 description, merge when green. Going live waits on the owner
+   (host choice and account, then the steps in `docs/deployment.md`).
 4. **Then Phase 9.**
 
 ## Standing rules from the owner
