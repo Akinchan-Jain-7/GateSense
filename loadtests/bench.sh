@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Repeatable measurement: reseed, start one API process, warm up, then three runs.
+# Repeatable measurement: reseed, start the API, warm up, then three runs.
 # Reports the median of the three. Used for every number in docs/performance.md.
 #
 #   ./bench.sh <label> <backend dir> [extra vehicles]
+#   WORKERS=2 ./bench.sh ...   # API worker processes (default 1)
 #
 # Needs Postgres + Redis running and backend/.env pointing at them.
 set -euo pipefail
@@ -14,6 +15,7 @@ USERS=${USERS:-40}
 # Local database URL for add_vehicles.py (git-ignored; see docs/performance.md).
 if [ -f "$HERE/.env.local" ]; then set -a; . "$HERE/.env.local"; set +a; fi
 DURATION=${DURATION:-40s}
+WORKERS=${WORKERS:-1}
 
 pkill -f "uvicorn app.main" || true
 sleep 1
@@ -23,7 +25,7 @@ if [ "$EXTRA_VEHICLES" -gt 0 ]; then
 fi
 # A stress test sends far more than a real camera: lift the per-camera limit (Phase 7).
 (cd "$BACKEND" && DEMO_MODE=true DEVICE_RATE_LIMIT=1000000 nohup uv run uvicorn app.main:app --port 8000 \
-  --log-level warning > "/tmp/bench-$LABEL.log" 2>&1 &)
+  --workers "$WORKERS" --log-level warning > "/tmp/bench-$LABEL.log" 2>&1 &)
 for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1 && break; sleep 1; done
 
 mkdir -p "$HERE/results"

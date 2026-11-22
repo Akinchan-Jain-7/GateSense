@@ -95,12 +95,39 @@ connections; it failed 3 times out of 3 before the fix and passes after.
 
 ## What would come next
 
-- **More processes.** The API is CPU-bound in one process; `uvicorn --workers N` (or
-  several containers) scales close to linearly until PostgreSQL becomes the limit. This
-  machine has only 2 cores shared with Locust, so that wasn't measured here.
+- **More processes, on more cores.** See "Multiple API workers" below: on this 2-vCPU
+  machine a second worker added nothing, because there was no idle core to give it.
 - **Exact match first.** Most reads are exact plate matches; an indexed lookup could skip
   the fuzzy scan entirely, which would remove the remaining dependence on society size.
 - **Cache society settings** for a few seconds instead of reading them on every read.
+
+## Multiple API workers (measured later, same machine)
+
+Same setup as above (80 vehicles, 40 users, median of three 40-second runs), with the
+machine otherwise idle, run back to back:
+
+| API processes | Requests/s | p50 | p95 | p99 | Failed |
+|---|---|---|---|---|---|
+| 1 (`--workers 1`) | 172.5 | 180 ms | 360 ms | 480 ms | 0 of 20,215 |
+| 2 (`--workers 2`) | 169.7 | 200 ms | 350 ms | 420 ms | 0 of 20,531 |
+
+(Raw numbers: `loadtests/results/workers1-80.json`, `workers2-80.json`. The one-worker
+figure is a little higher than the 159.1 req/s measured in Phase 7 on the same code path:
+run-to-run machine variance, which is why both rows here come from one session.)
+
+**No gain, and why.** A `top` sample during the two-worker run showed the CPUs 0.6% idle:
+the two API processes at about 73% and 67%, Locust at 18%, PostgreSQL and Redis sharing
+the rest. With one worker, the API process already had a core to itself while Locust and
+PostgreSQL used the other. A second worker only competes with them for the same two
+vCPUs. More workers pay off when there are idle cores: on the deployment server,
+`WEB_CONCURRENCY` should be about the number of cores *left after PostgreSQL*, and the
+load generator should run on a different machine before any multi-worker number is
+quoted.
+
+The first attempt at this measurement showed 99.8 req/s and 1,534 failures. The cause was
+leftover processes (a frontend preview server, Chrome from the browser tests, an older API
+process on the same port) competing for the CPU, not the code. It is a reminder to check
+the machine is idle before trusting a benchmark.
 
 ## Reproducing
 
@@ -110,6 +137,7 @@ cd loadtests && uv sync
 echo "LOADTEST_DATABASE_URL=postgresql://gatesense:<password>@127.0.0.1:5432/gatesense" > .env.local
 ./bench.sh mine ../backend          # 80 vehicles
 ./bench.sh mine-500 ../backend 420  # 500 vehicles
+WORKERS=2 ./bench.sh mine-w2 ../backend  # two API processes
 ```
 
 `bench.sh` reseeds the database and rotates camera keys: never point it at real data.
