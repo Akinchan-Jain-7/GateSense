@@ -4643,7 +4643,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "description": "Log in with email (in the `username` field) and password.\n\nSent as a form (OAuth2 password flow), which is what the **Authorize** button in\n`/docs` uses.",
+        "description": "Log in with email (in the `username` field) and password.\n\nSent as a form (OAuth2 password flow), which is what the **Authorize** button in\n`/docs` uses. Rate-limited per client IP and per account (429 + Retry-After).",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
