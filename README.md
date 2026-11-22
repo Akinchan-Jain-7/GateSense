@@ -73,7 +73,7 @@ Real measured numbers only. Each one is filled in by the phase that measures it.
 | End-to-end plate accuracy | TBD (pending the Phase 3 Colab runs) |
 | Plate detector latency on CPU (YOLOv8n, 1280x720) | 65 ms FP32 · 32 ms INT8 static, 2-core build machine ([details](anpr/eval/results/detector_latency.md)) |
 | Gate-event ingestion, one API process, 40 simulated cameras | 159 req/s, p95 410 ms; first bottleneck fixed: +30% (80 vehicles), +58% (500 vehicles) ([method and numbers](docs/performance.md)) |
-| Test coverage (enforced in CI) | backend 96% (499 tests, min 90%), ANPR 87% (min 80%), frontend 63% lines (min 55%) + 3 Playwright journeys |
+| Test coverage (enforced in CI) | backend 96% (499+ tests, min 90%), ANPR 87% (min 80%), frontend 81% lines (53 tests, min 78%) + 3 Playwright journeys + 42 automated WCAG 2.1 AA checks |
 
 ## Tech stack
 

@@ -73,13 +73,13 @@ function LanguageButton({ compact = false }: { compact?: boolean }) {
       size={compact ? 'md' : 'xl'}
       variant="ghost"
       className={compact ? 'h-11 px-3' : undefined}
-      lang={next}
-      aria-label={t('console.switchLanguageLabel')}
       onClick={() => {
         setLanguage(next)
       }}
     >
-      <Languages /> {t('console.switchLanguage')}
+      {/* The spoken name starts with the visible word, so "click हिन्दी" works by voice too. */}
+      <Languages aria-hidden /> <span lang={next}>{t('console.switchLanguage')}</span>
+      <span className="sr-only">: {t('console.switchLanguageLabel')}</span>
     </Button>
   )
 }

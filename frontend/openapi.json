@@ -2244,7 +2244,8 @@
         "enum": [
           "pending",
           "sent",
-          "failed"
+          "failed",
+          "cancelled"
         ],
         "title": "NotificationStatus",
         "type": "string"

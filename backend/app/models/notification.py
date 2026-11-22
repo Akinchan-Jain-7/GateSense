@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
@@ -48,6 +50,8 @@ class Notification(UUIDPrimaryKey, Timestamps, Base):
     subject: Mapped[str | None] = mapped_column(String(255))
     body_text: Mapped[str | None] = mapped_column(Text)
     body_html: Mapped[str | None] = mapped_column(Text)
+    # Channel extras: Telegram buttons and the approval a request is about.
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # When the dispatcher may try again (exponential backoff after a failure).
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 

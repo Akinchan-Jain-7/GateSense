@@ -1,0 +1,14 @@
+{
+  "label": "workers1-80",
+  "requests_per_second": 172.5,
+  "p50_ms": 180.0,
+  "p95_ms": 360.0,
+  "p99_ms": 480.0,
+  "failures": 0,
+  "requests": 20215,
+  "runs_rps": [
+    170.7,
+    174.7,
+    172.5
+  ]
+}

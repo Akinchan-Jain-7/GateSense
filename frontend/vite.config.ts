@@ -76,7 +76,8 @@ export default defineConfig({
       include: ['src/**'],
       exclude: ['src/lib/api/schema.d.ts', 'src/main.tsx'],
       // CI fails below these (Phase 7). The Playwright journeys cover the rest end to end.
-      thresholds: { lines: 55, statements: 55, functions: 45, branches: 45 },
+      // A few points under what the suite reaches (Nov 2026: 81% lines), so it can only go up.
+      thresholds: { lines: 78, statements: 76, functions: 70, branches: 64 },
     },
   },
 })

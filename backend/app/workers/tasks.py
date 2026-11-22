@@ -6,7 +6,6 @@ work but before acknowledging it) never repeats its effect.
 
 import logging
 import uuid
-from datetime import UTC, datetime
 
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -14,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.models import Notification
-from app.models.enums import ApprovalStatus, NotificationChannel, NotificationStatus
+from app.models.enums import ApprovalStatus, NotificationStatus
 from app.services import telegram, visitors
 from app.workers.celery_app import celery_app
 from app.workers.runner import run_job
@@ -33,46 +32,41 @@ def expire_approval(approval_id: str) -> bool:
 async def send_approval(
     db: AsyncSession, settings: Settings, bot: telegram.TelegramBot, approval_id: uuid.UUID
 ) -> int:
-    """Send an approval request to each linked resident once. Returns how many were sent."""
+    """Queue the approval request for each linked resident (once each, however often the
+    job runs) and deliver it straight away. Returns how many were sent now; a failed send
+    stays queued and the dispatcher retries it with backoff."""
+    from app.services import notifications
+
     approval = await visitors.load_approval(db, approval_id)
     if approval.status is not ApprovalStatus.PENDING:
         return 0
-    sent = 0
+    prefix = f"approval:{approval.id}:telegram:"
     for user in await telegram.linked_residents(db, approval.visit.flat_id):
-        key = f"approval:{approval.id}:telegram:{user.id}"
-        note = await db.scalar(select(Notification).where(Notification.idempotency_key == key))
-        if note is not None and note.status is NotificationStatus.SENT:
-            continue
-        if note is None:
-            note = Notification(
-                society_id=approval.visit.society_id,
-                channel=NotificationChannel.TELEGRAM,
-                kind="approval_request",
-                recipient=str(user.telegram_chat_id),
-                user_id=user.id,
-                visit_id=approval.visit_id,
-                idempotency_key=key,
-                attempts=0,
-            )
-            db.add(note)
-        note.attempts += 1
-        try:
-            assert user.telegram_chat_id is not None  # noqa: S101 - filtered by the query
-            await bot.send_message(
-                user.telegram_chat_id,
-                telegram.approval_text(approval),
-                telegram.approval_buttons(approval),
-            )
-        except Exception as exc:  # noqa: BLE001 - log any send failure on the notification
-            note.status = NotificationStatus.FAILED
-            note.last_error = str(exc)[:500]
-            logger.warning("telegram send failed", extra={"approval_id": str(approval.id)})
-        else:
-            note.status = NotificationStatus.SENT
-            note.sent_at = datetime.now(UTC)
-            sent += 1
-        await db.commit()
-    return sent
+        assert user.telegram_chat_id is not None  # noqa: S101 - filtered by the query
+        await notifications.queue_telegram(
+            db,
+            society_id=approval.visit.society_id,
+            kind="approval_request",
+            chat_id=user.telegram_chat_id,
+            text=telegram.approval_text(approval),
+            buttons=telegram.approval_buttons(approval),
+            key=f"{prefix}{user.id}",
+            approval_id=approval.id,
+            user_id=user.id,
+            visit_id=approval.visit_id,
+        )
+    await db.commit()
+    queued = await db.scalars(
+        select(Notification.id).where(
+            Notification.idempotency_key.startswith(prefix),
+            Notification.status == NotificationStatus.PENDING,
+            Notification.next_attempt_at.is_(None),  # retries wait for the dispatcher
+        )
+    )
+    counts = await notifications.dispatch_due(db, None, settings, bot=bot, only=list(queued))
+    if counts["retrying"]:
+        logger.warning("telegram send failed", extra={"approval_id": str(approval.id)})
+    return counts["sent"]
 
 
 @celery_app.task(name="approvals.telegram")  # type: ignore[untyped-decorator]
@@ -109,7 +103,14 @@ def dispatch_notifications() -> dict[str, int]:
     from app.services import notifications
 
     async def job(db: AsyncSession, redis: Redis, settings: Settings) -> dict[str, int]:
-        return await notifications.dispatch_due(db, notifications.SmtpMailer(settings), settings)
+        bot = telegram.build_bot(settings)  # None when Telegram isn't set up
+        try:
+            return await notifications.dispatch_due(
+                db, notifications.SmtpMailer(settings), settings, bot=bot
+            )
+        finally:
+            if bot is not None:
+                await bot.aclose()
 
     return run_job(job)
 
