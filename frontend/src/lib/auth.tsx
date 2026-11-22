@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn: async (email, password) => {
         queryClient.clear()
         await signIn(email, password)
-        return queryClient.fetchQuery({
+        return queryClient.query({
           queryKey: ['me'],
           queryFn: () => unwrap(api.GET('/api/v1/me')),
         })

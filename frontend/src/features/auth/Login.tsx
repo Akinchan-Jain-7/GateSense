@@ -1,5 +1,5 @@
 import { LoaderCircle } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
@@ -36,7 +36,7 @@ export default function Login() {
   const next = safeNext(params.get('next'))
   if (user) return <Navigate to={next ?? homeFor(user.role)} replace />
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setError(null)

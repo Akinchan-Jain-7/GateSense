@@ -65,3 +65,12 @@ export function titleCase(value: string): string {
   const text = value.replaceAll('_', ' ')
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
+
+/** "+919876543210" -> "+91 98•••••210": lists show enough to recognise, not to copy. */
+export function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return '—'
+  if (phone.includes('•')) return phone // already masked by the API
+  const local = phone.replace(/^\+91/, '')
+  if (local.length < 6) return phone
+  return `+91 ${local.slice(0, 2)}${'•'.repeat(local.length - 5)}${local.slice(-3)}`
+}

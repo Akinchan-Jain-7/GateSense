@@ -11,7 +11,7 @@ import {
   ShieldAlert,
   UserPlus,
 } from 'lucide-react'
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useMemo, useState, type SubmitEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge, type BadgeTone } from '@/components/ui/badge'
@@ -118,7 +118,7 @@ function ReviewActions({ event }: { event: GateEvent }) {
     { invalidate: [['gate-events'], ['review-queue'], ['visits']] },
   )
 
-  function save(e: FormEvent) {
+  function save(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     review.mutate(cleanPlateInput(plate))
   }

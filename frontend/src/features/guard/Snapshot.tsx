@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ImageOff } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { API_BASE, authFetch } from '@/lib/api/client'
@@ -23,15 +23,13 @@ function useSnapshotUrl(eventId: string): string | null | undefined {
     staleTime: Infinity,
     retry: false,
   })
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    if (!blob.data) return
-    const objectUrl = URL.createObjectURL(blob.data)
-    setUrl(objectUrl)
-    return () => {
-      URL.revokeObjectURL(objectUrl)
-    }
-  }, [blob.data])
+  const url = useMemo(() => (blob.data ? URL.createObjectURL(blob.data) : null), [blob.data])
+  useEffect(
+    () => () => {
+      if (url) URL.revokeObjectURL(url)
+    },
+    [url],
+  )
   if (blob.isError) return null
   return url ?? undefined
 }

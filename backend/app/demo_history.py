@@ -248,6 +248,7 @@ async def add_history(
     service_gate: GateLanes,
     make_plate: PlateMaker,
     live: bool = False,
+    focus_flat: FlatContacts | None = None,
 ) -> HistorySummary:
     """Add `days` days of closed visits and resident movements ending at `now`.
 
@@ -321,7 +322,9 @@ async def add_history(
 
     _resident_movements(b, residents_cars, first_day, days, main_gate, service_gate)
     if live:
-        _current_state(b, limits, flats, guard_ids, residents_cars, main_gate, make_plate, guests)
+        _current_state(
+            b, limits, flats, guard_ids, residents_cars, main_gate, make_plate, guests, focus_flat
+        )
     await db.flush()  # visitors, visits and approvals first
     db.add_all(b.status_changes)
     db.add_all(b.events)
@@ -531,6 +534,7 @@ def _current_state(
     lanes: GateLanes,
     make_plate: PlateMaker,
     guests: list[_Person],
+    focus_flat: FlatContacts | None,
 ) -> None:
     """A few things happening at the gate right now, so the guard console isn't empty
     when the demo opens: visitors inside (one long overdue, with a call task for the
@@ -554,8 +558,9 @@ def _current_state(
         requested: datetime,
         entered: datetime | None = None,
         plate: str | None = None,
+        flat: FlatContacts | None = None,
     ) -> tuple[Visit, FlatContacts]:
-        flat = rng.choice(flats)
+        flat = flat or rng.choice(flats)
         visitor = Visitor(
             id=uuid.uuid4(), society_id=b.society_id, full_name=person.name, phone=person.phone
         )
@@ -635,9 +640,9 @@ def _current_state(
             b.links.append((visit, event, None))
 
     # Inside, plenty of time left; and a delivery close to its limit.
-    for person, category, minutes_in in (
-        (next(people), VisitCategory.GUEST, 50),
-        (next(people), VisitCategory.DELIVERY, 14),
+    for person, category, minutes_in, where in (
+        (next(people), VisitCategory.GUEST, 50, focus_flat),
+        (next(people), VisitCategory.DELIVERY, 14, None),
     ):
         plate = make_plate(two_wheeler=category == VisitCategory.DELIVERY)
         if category == VisitCategory.DELIVERY:
@@ -649,6 +654,7 @@ def _current_state(
             requested=mins(minutes_in + 2),
             entered=mins(minutes_in),
             plate=plate,
+            flat=where,
         )
         approve(visit, flat, mins(minutes_in + 2), mins(minutes_in + 1))
         enter(visit, mins(minutes_in))
@@ -716,12 +722,14 @@ def _current_state(
     # At the gate: the camera read an unknown car, the guard registered the driver, and
     # the flat has a couple of minutes left to answer.
     plate = make_plate(two_wheeler=False)
+    cab = next(people)
     visit, flat = open_visit(
-        next(people),
+        _Person(cab.name, cab.phone, rng.choice(CAB_DRIVERS)[1], None),
         VisitCategory.CAB,
         VisitStatus.PENDING_APPROVAL,
         requested=mins(0.7),
         plate=plate,
+        flat=focus_flat,
     )
     b.event(
         lanes.entry,

@@ -125,7 +125,6 @@ export function LiveProvider({ enabled, children }: { enabled: boolean; children
       connect()
     }
 
-    setStatus('connecting')
     connect()
     window.addEventListener('online', reconnectNow)
     return () => {

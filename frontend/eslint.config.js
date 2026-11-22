@@ -28,4 +28,9 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
+  {
+    // Providers and their hooks live together on purpose (lib/auth, lib/live, lib/theme).
+    files: ['src/lib/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 )

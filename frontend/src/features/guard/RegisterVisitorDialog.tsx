@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -74,7 +74,7 @@ function RegisterForm({ prefill, onDone }: { prefill: RegisterPrefill; onDone: (
     },
   )
 
-  function submit(event: FormEvent) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     register.mutate({
       full_name: form.full_name.trim(),

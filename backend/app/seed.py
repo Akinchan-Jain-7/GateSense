@@ -397,6 +397,11 @@ async def seed(
             service_gate=gate_lanes("Service Gate"),
             make_plate=make_plate,
             live=live,
+            focus_flat=next(
+                FlatContacts(flat.id, [u.id for u in residents_by_flat[i]])
+                for i, flat in enumerate(flats)
+                if (flat.block, flat.number) == DEMO_RESIDENT_FLAT
+            ),
         )
         summary.history_visits = history.visits
         summary.history_gate_events = history.gate_events

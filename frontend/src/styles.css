@@ -24,6 +24,9 @@
   --warn-soft: #fcf1e1;
   --danger: #b42318;
   --danger-soft: #fdecea;
+  /* Chart series, validated with the dataviz palette checker (light surface). */
+  --series-1: #3b63e0;
+  --series-2: #d9772b;
   color-scheme: light;
 }
 
@@ -46,6 +49,9 @@
   --warn-soft: #2e2311;
   --danger: #ff6b5e;
   --danger-soft: #34191a;
+  /* Dark steps of the same hues, validated against the dark surface. */
+  --series-1: #5f80f2;
+  --series-2: #d2773a;
   color-scheme: dark;
 }
 
@@ -68,6 +74,8 @@
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
 
   --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Devanagari', system-ui, sans-serif;
   --font-plate: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
