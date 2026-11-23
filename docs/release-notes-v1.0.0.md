@@ -3,8 +3,9 @@
 The first complete version of GateSense: number-plate entry for residents,
 resident-approved visitors, and automatic follow-up of overstaying vehicles.
 
-> Draft. The tag is created after the owner's review. The numbers below are the ones in
-> the README, all measured.
+The numbers below are the ones in the README, all measured. The trained plate detector
+is published separately as the `models-v1` release (`plate_detector.onnx`, SHA-256
+`63e5d3e1…6a977`); `uv run python -m gatesense_anpr.download_model` installs and checks it.
 
 ## What's in it
 
