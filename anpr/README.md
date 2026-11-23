@@ -33,7 +33,7 @@ Run on a real camera or recording (needs a trained model and an OCR engine):
 
 ```bash
 uv sync --extra easyocr                         # or --extra paddleocr
-uv run python -m gatesense_anpr.download_model  # plate_detector.onnx from GitHub Releases
+uv run python -m gatesense_anpr.download_model  # plate_detector.onnx from GitHub Releases, hash-checked
 uv run gatesense-anpr --source path/to/gate.mp4  # or 0 (webcam), rtsp://…, or a folder
 ```
 
@@ -55,10 +55,11 @@ good (invalid data) is moved to a `rejected` table so it can't block the queue. 
 ## Models and data
 
 - Weights and datasets **never go in git** (`anpr/models/`, `anpr/data/` are ignored).
-- Train the detector: `notebooks/01_train_plate_detector.ipynb` (Colab GPU).
+- Train the detector: `notebooks/01_train_plate_detector.ipynb` (Kaggle or Colab GPU).
 - Compare OCR engines: `notebooks/02_evaluate_ocr.ipynb`.
 - Your own photos: folder layout and labelling guide in [DATASET.md](DATASET.md).
-- The trained model is published as a GitHub Release asset (`models-v1/plate_detector.onnx`).
+- The trained model is published as a GitHub Release asset (`models-v1/plate_detector.onnx`,
+  SHA-256 `63e5d3e1…6a977`, checked by `download_model`). Scores: [eval/results/detector_comparison.md](eval/results/detector_comparison.md).
 
 ## Evaluation
 
