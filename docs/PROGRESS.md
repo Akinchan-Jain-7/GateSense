@@ -24,33 +24,35 @@ Phase 8 goes live (`docs/deployment.md`, "What the owner does").
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
 
-## Handoff (2026-11-23, ~15:30 IST)
+## Handoff (2026-11-23, ~18:50 IST)
 
-Done this session (owner away, asked for the rest to be finished):
+Done today: detector rebuilt as saved Kaggle version 3 (same scores, new hash
+`63e5d3e1…6a977`), Phase 9 merged (#14), one-paste server setup
+`scripts/oracle-cloud-init.sh` merged (#15), all four GHCR images made public, the
+owner's local clone pulled to `f2b9c74`, the full stack run on the owner's laptop with the
+simulator (guard console live).
 
-- **Model rebuilt and kept.** The interactive Kaggle sessions had expired, so the notebook
-  was run as saved **version 3** (Save & Run All, GPU T4). Its output stays on Kaggle
-  (notebook "GateSense 01 - plate detector training", Output tab). Scores are identical
-  to the first run (training is seeded); only the ONNX file's hash changed:
-  `63e5d3e155b1456076c1438c82f969eab25b517b53c42a62dd384ad94de6a977`.
-  `detector_comparison.*` updated; `download_model` now checks that hash by default.
-- **Phase 9 merged** (#14) after green CI.
-- Not possible from this session: creating GitHub releases (blocked for this session
-  type) and opening the owner's Downloads folder (folder access needs the owner).
+Oracle Cloud (owner's account `akinchanjain7`, home region Mumbai, Free Tier): network
+`gatesense-vcn` created (public + private subnet), ingress 80/443 added to its Default
+Security List. **Creating the VM failed: "Out of capacity" for VM.Standard.A1.Flex in
+AD-1** (2 OCPU and 1 OCPU tried, ~7 attempts over 20 min). An SSH key pair was generated
+in the create form and its private key downloaded to the owner's Downloads.
 
-Pick up here (owner, ~5 minutes; exact steps in the PR #14 description and the summary):
+Pick up here:
 
-1. **Publish `models-v1`:** GitHub → Releases → Draft a new release → tag `models-v1`
-   (create on `main`) → title "Plate detector model v1" → attach `plate_detector.onnx`
-   (in Downloads from the Kaggle run, or Kaggle Output tab → `gatesense_results`) →
-   check its SHA-256 matches the one above → Publish.
-2. **Publish `v1.0.0`:** Draft a new release → tag `v1.0.0` (create on `main`) → title
-   "GateSense v1.0.0" → paste `docs/release-notes-v1.0.0.md` → Publish.
-3. Optional: `cd anpr && uv run python eval/benchmark_detector.py models/plate_detector.onnx`
-   on your laptop for CPU latency of the trained file (the table today is for the same
-   architecture, which is what sets the speed).
-4. Pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram bot token,
-   record the demo video (docs/demo-script.md).
+1. **Bug (found in the live tour):** on the landing page, "Try the resident app" while
+   already signed in as the guard lands on `/guard` with the resident's token ("needs one
+   of these roles: admin, guard"). Fix the demo role switch (go to the new role's home,
+   clear the old profile) and add a test that would have caught it.
+2. **Oracle VM:** retry Create (Compute → Create instance: Ubuntu 24.04, A1.Flex, existing
+   `gatesense-vcn` public subnet, public IP on, initialization script
+   `curl -fsSL https://raw.githubusercontent.com/Akinchan-Jain-7/GateSense/main/scripts/oracle-cloud-init.sh | bash`).
+   If capacity stays out, the owner decides: upgrade to Pay As You Go, or trial credits.
+3. **Owner:** publish `models-v1` (form was prefilled; attach `plate_detector.onnx`),
+   then `v1.0.0` (notes in `docs/release-notes-v1.0.0.md`); demo video.
+4. Owner wants to make modifications next session; ask what they are first.
+5. Optional: try the laptop webcam with the ANPR worker (`uv run gatesense-anpr --source 0`,
+   simulator stopped first because it rotates camera keys).
 
 ## Standing rules from the owner
 
