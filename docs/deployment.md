@@ -66,6 +66,17 @@ they go into the server's `.env.prod` file and into GitHub's secret settings.
   ```
 - _VPS:_ create an Ubuntu 24.04 server with your SSH key; open ports 22, 80 and 443.
 
+**Shortcut for Plan A (or any fresh Ubuntu server):** steps 3 to 6 are automated by
+[`scripts/oracle-cloud-init.sh`](../scripts/oracle-cloud-init.sh). On Oracle, paste the
+whole file into *Create instance → Show advanced options → Management → Initialization
+script* before creating the VM; elsewhere, run it once with `sudo bash`. It opens ports
+80/443 in the server's firewall, installs Docker, clones the repo, writes `.env.prod` with
+fresh random secrets (generated on the server, never shown anywhere), starts the demo
+(`DEMO_MODE=true` with the simulator) at `https://<ip-with-dashes>.sslip.io`, and adds a
+cron job that pulls new commits and images every 15 minutes, so step 8 is optional. You
+still make the images public (step 5) and add the Security List rules (step 2). Follow
+progress with `sudo tail -f /var/log/gatesense-setup.log`.
+
 **3. Install Docker** (on the server):
 
 ```bash
