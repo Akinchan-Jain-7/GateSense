@@ -56,7 +56,7 @@ resident-approved visitors, and automatic follow-up of overstaying vehicles.
 | Plate detector (YOLOv8n), 354 test photos from a different dataset | mAP@0.5 0.745, mAP@0.5:0.95 0.384, recall 0.87 |
 | Detector speed on CPU, 1280×720, 2 cores | 65 ms FP32, 32 ms INT8 static |
 | Gate-event ingestion, one API process | 159 req/s, p95 410 ms; first bottleneck fixed (+30% / +58%) |
-| Tests | backend 507 (96%), ANPR 62 (87%), web 53 (81% lines), simulator 16, 3 Playwright journeys, 42 accessibility checks |
+| Tests | backend 507 (96%), ANPR 63 (87%), web 53 (81% lines), simulator 16, 3 Playwright journeys, 42 accessibility checks |
 
 ## Not in this release
 

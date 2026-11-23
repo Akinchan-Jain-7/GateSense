@@ -81,7 +81,7 @@ All numbers below were measured. Anything not measured yet says so.
 | Plate detector speed on CPU (YOLOv8n, 1280×720 frame) | 65 ms FP32, 32 ms INT8 (static quantisation), on a 2-core machine ([details](anpr/eval/results/detector_latency.md)) |
 | OCR and full plate accuracy per condition (day / night / rain / two-wheeler) | Not measured yet: needs labelled local photos ([notebook 02](anpr/notebooks/), [anpr/DATASET.md](anpr/DATASET.md)) |
 | Gate-event ingestion, one API process, 40 simulated cameras | 159 req/s, p95 410 ms. The first bottleneck was found and fixed: +30% throughput with 80 vehicles, +58% with 500 ([method and numbers](docs/performance.md)) |
-| Tests (coverage minimums enforced in CI) | Backend: 507 tests, 96% coverage. ANPR: 62 tests, 87%. Web: 53 tests, 81% of lines. Simulator: 16 tests. Plus 3 Playwright journeys and 42 automated WCAG 2.1 AA checks |
+| Tests (coverage minimums enforced in CI) | Backend: 507 tests, 96% coverage. ANPR: 63 tests, 87%. Web: 53 tests, 81% of lines. Simulator: 16 tests. Plus 3 Playwright journeys and 42 automated WCAG 2.1 AA checks |
 
 ## Tech stack
 
