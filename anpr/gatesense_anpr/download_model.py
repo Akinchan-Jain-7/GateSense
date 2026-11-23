@@ -1,11 +1,14 @@
 """Download the trained plate detector from a GitHub Release.
 
-Model weights never go in git (they're tens of MB). After training in Colab
+Model weights never go in git (they're tens of MB). After training on Kaggle or Colab
 (notebooks/01_train_plate_detector.ipynb), the owner uploads `plate_detector.onnx` to a
 release of the repo, and everyone else runs:
 
     uv run python -m gatesense_anpr.download_model
     uv run python -m gatesense_anpr.download_model --tag models-v1 --sha256 <hash>
+
+Releases we know about are checked against their SHA-256 automatically, so a corrupted or
+swapped file is never installed.
 """
 
 import argparse
@@ -20,6 +23,10 @@ from gatesense_anpr.config import ANPR_DIR
 REPO = "Akinchan-Jain-7/GateSense"
 DEFAULT_TAG = "models-v1"
 ASSET = "plate_detector.onnx"
+# SHA-256 of each published model, from the training run's detector_comparison.json.
+KNOWN_SHA256 = {
+    "models-v1": "63e5d3e155b1456076c1438c82f969eab25b517b53c42a62dd384ad94de6a977",
+}
 
 
 def release_url(tag: str, asset: str = ASSET, repo: str = REPO) -> str:
@@ -32,6 +39,13 @@ def sha256_of(path: Path) -> str:
         for chunk in iter(lambda: file.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def expected_hash(tag: str, url: str | None, given: str | None) -> str | None:
+    """The hash to check: the one given, else the known hash for a release download."""
+    if given:
+        return given
+    return None if url else KNOWN_SHA256.get(tag)
 
 
 def download(url: str, target: Path, expected_sha256: str | None = None) -> Path:
@@ -57,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=ANPR_DIR / "models" / ASSET)
     args = parser.parse_args(argv)
     url = args.url or release_url(args.tag)
-    path = download(url, args.out, args.sha256)
+    path = download(url, args.out, expected_hash(args.tag, args.url, args.sha256))
     print(f"saved {path} (sha256 {sha256_of(path)})")
     return 0
 
