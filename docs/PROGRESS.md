@@ -13,41 +13,44 @@ The agent updates this file at the start and end of every session.
 | 5 | Escalation, notifications, scheduled jobs | ✅ Done | [#8](https://github.com/Akinchan-Jain-7/GateSense/pull/8) |
 | 6 | Frontend (professional UI) | ✅ Done | [#9](https://github.com/Akinchan-Jain-7/GateSense/pull/9) |
 | 7 | Hardening, offline mode, performance | ✅ Done | [#10](https://github.com/Akinchan-Jain-7/GateSense/pull/10) |
-| — | Closing the gaps in Phases 0–7 | ✅ Merged (detector numbers pending the Kaggle run) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
-| 8 | Docker and deployment | 🟡 Mostly built (draft) | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
-| 9 | Polish, docs, release | ⚪ Not started | |
+| — | Closing the gaps in Phases 0–7 | ✅ Merged (detector results in #13) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
+| 8 | Docker and deployment | 🟡 Built and merged; goes live once the owner picks a host | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
+| 9 | Polish, docs, release | ✅ Merged (owner publishes the two releases) | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
 
-**Now:** the detector results from Kaggle (follow-up PR), then the rest of Phase 8 and
-Phase 9. Phase 8 goes live once the owner picks a host and creates the account (see
-`docs/deployment.md`, "What the owner does").
+**Now:** everything the agent can build is merged. Left for the owner: publish the
+`models-v1` and `v1.0.0` releases (steps in the handoff below), then pick a host so
+Phase 8 goes live (`docs/deployment.md`, "What the owner does").
 
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
 
-## Handoff (2026-11-23, ~00:35 IST)
+## Handoff (2026-11-23, ~15:30 IST)
 
-Done this session: Phase 0–7 gaps (#12), Phase 8 merged (#11; images publish to GHCR on
-every green `main`), detector trained on Kaggle with real numbers (this branch,
-`detector-results`), Phase 9 docs started (`phase-9-polish`: architecture, demo script,
-interview guide, PROGRESS plan; not merged yet).
+Done this session (owner away, asked for the rest to be finished):
 
-Pick up here:
+- **Model rebuilt and kept.** The interactive Kaggle sessions had expired, so the notebook
+  was run as saved **version 3** (Save & Run All, GPU T4). Its output stays on Kaggle
+  (notebook "GateSense 01 - plate detector training", Output tab). Scores are identical
+  to the first run (training is seeded); only the ONNX file's hash changed:
+  `63e5d3e155b1456076c1438c82f969eab25b517b53c42a62dd384ad94de6a977`.
+  `detector_comparison.*` updated; `download_model` now checks that hash by default.
+- **Phase 9 merged** (#14) after green CI.
+- Not possible from this session: creating GitHub releases (blocked for this session
+  type) and opening the owner's Downloads folder (folder access needs the owner).
 
-1. **Merge the detector results PR** (`detector-results`) when CI is green.
-2. **Get the trained model file.** Owner approved (2026-11-23): download
-   `gatesense_detector_results.zip` from the Kaggle notebook "GateSense 01 - plate detector
-   training" (Output panel, `/kaggle/working`), measure CPU latency with
-   `eval/benchmark_detector.py`, and publish `plate_detector.onnx` as the public GitHub
-   Release `models-v1`. SHA-256 `bfa78f77a95cba2bdbe24914370d0881cf3d2ae91c009643904319d2b19dae9f`.
-   The built-in browser's download didn't land in `C:\Users\akinc\Downloads` (access to
-   that folder is granted for the session). If the interactive session's files are gone,
-   rerun the notebook interactively (~45 min; background versions queue for hours), or ask
-   the owner to download the zip into Downloads.
-3. **Phase 9:** rebase `phase-9-polish` on `main`, rewrite the README recruiter-first
-   (results now include the detector), badges, release notes, tag `v1.0.0` after the
-   owner's review.
-4. **Owner:** pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram
-   bot token, record the demo video (docs/demo-script.md).
+Pick up here (owner, ~5 minutes; exact steps in the PR #14 description and the summary):
+
+1. **Publish `models-v1`:** GitHub → Releases → Draft a new release → tag `models-v1`
+   (create on `main`) → title "Plate detector model v1" → attach `plate_detector.onnx`
+   (in Downloads from the Kaggle run, or Kaggle Output tab → `gatesense_results`) →
+   check its SHA-256 matches the one above → Publish.
+2. **Publish `v1.0.0`:** Draft a new release → tag `v1.0.0` (create on `main`) → title
+   "GateSense v1.0.0" → paste `docs/release-notes-v1.0.0.md` → Publish.
+3. Optional: `cd anpr && uv run python eval/benchmark_detector.py models/plate_detector.onnx`
+   on your laptop for CPU latency of the trained file (the table today is for the same
+   architecture, which is what sets the speed).
+4. Pick a host (docs/deployment.md), labelled photos for notebook 02, Telegram bot token,
+   record the demo video (docs/demo-script.md).
 
 ## Standing rules from the owner
 
@@ -104,6 +107,32 @@ Branch: `phase-8-deployment`
 - **Simulator speed:** `SIM_SPEED` compresses only the simulator's own clock. The server's
   timers (approval timeout, visit limits) run in real time, so the live demo uses speed 1.
 
+## Phase 9: Polish, docs, release
+
+Branch: `phase-9-polish`
+
+- [x] `docs/architecture.md`: components, plate read → visit, state machine, jobs, real
+      time, security (diagrams in Mermaid)
+- [x] `docs/demo-script.md`: 90-second video script
+- [x] `docs/learn/INTERVIEW_GUIDE.md`: pitch, whiteboard walkthrough, 10 hard questions,
+      what I'd do differently
+- [x] `docs/api.md` checked against the OpenAPI schema: every route is listed
+- [x] README rewritten recruiter-first, with the detector results and honest known limitations
+- [x] Badges: CI, coverage, licence; the live-demo badge says "not deployed yet" until a host is picked
+- [x] Reviewed the 4 moderate `npm audit` findings: production dependencies have 0; all four
+      are one build-time chain (`vite-plugin-pwa` → `workbox-build` → old `glob`/`minimatch`,
+      a denial of service on crafted glob patterns). Only our own build config's patterns
+      reach it, never user input. npm's "fix" downgrades the PWA plugin a major version, so
+      it's accepted for now; revisit when Workbox updates
+- [x] Release notes drafted: `docs/release-notes-v1.0.0.md`
+- [x] Study guide `docs/learn/phase-9.md`
+- [x] Detector rebuilt as a saved Kaggle version (same scores, new hash); `download_model`
+      checks the `models-v1` hash
+- [x] Merged ([#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14))
+- [ ] **Owner:** publish the `models-v1` and `v1.0.0` releases (this session can't create
+      releases); steps in the handoff above
+- [ ] Owner: record the demo video and GIF (`docs/demo-script.md`)
+
 ## Closing the gaps in Phases 0–7
 
 Branch: `gaps-phase-0-7`. The owner asked for every known gap in Phases 0–7 to be closed
@@ -117,8 +146,9 @@ before Phase 8 and 9 continue.
 - [x] Kaggle run finished: YOLOv8n chosen by the fixed rule; test mAP50 0.745 /
       mAP50-95 0.384 on 354 photos from a separate dataset. Numbers in
       `anpr/eval/results/detector_comparison.*`, the README and ADR-0009
-- [ ] CPU latency of the trained model (`eval/benchmark_detector.py`), model on a
-      `models-v1` release
+- [x] Trained model rebuilt as a saved Kaggle version with the same scores; release
+      `models-v1` drafted for the owner to publish (CPU latency of the same architecture
+      is in `detector_latency.md`)
 - [x] **Accessibility:** axe-core WCAG 2.1 AA checks on 18 screens in both themes, phone
       width and keyboard-only login (42 checks, in CI). Fixed what it found: `faint` text
       below 4.5:1, the guard language button's spoken name, a range picker built from tabs

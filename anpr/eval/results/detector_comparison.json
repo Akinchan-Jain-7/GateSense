@@ -1,7 +1,7 @@
 {
   "dataset": "public Kaggle datasets (CC0 / Apache 2.0), test set from a separate source",
   "platform": "Kaggle",
-  "gpu": "GPU 0: Tesla T4 (UUID: GPU-332d4afe-11fc-e03d-02ed-228c21547f99)\nGPU 1: Tesla T4 (UUID: GPU-c43ec61e-3d92-5dca-461c-30947c45e7d0)",
+  "gpu": "GPU 0: Tesla T4 (UUID: GPU-f323410a-0ea6-f944-6123-ea63ef04587f)\nGPU 1: Tesla T4 (UUID: GPU-7eb6d661-3abf-98e6-35b6-aa3fbb72747d)",
   "splits": {
     "train": 453,
     "valid": 52,
@@ -81,7 +81,7 @@
         "precision": 0.9167,
         "recall": 0.7945
       },
-      "train_minutes": 8.2,
+      "train_minutes": 9.8,
       "epochs": 60,
       "onnx": "/tmp/gatesense/runs/yolov8n_plate/weights/best.onnx",
       "onnx_mb": 12.8
@@ -100,12 +100,12 @@
         "precision": 0.9629,
         "recall": 0.8037
       },
-      "train_minutes": 8.4,
+      "train_minutes": 9.6,
       "epochs": 60,
       "onnx": "/tmp/gatesense/runs/yolov8s_plate/weights/best.onnx",
       "onnx_mb": 44.7
     }
   ],
   "chosen": "yolov8n_plate",
-  "sha256": "bfa78f77a95cba2bdbe24914370d0881cf3d2ae91c009643904319d2b19dae9f"
+  "sha256": "63e5d3e155b1456076c1438c82f969eab25b517b53c42a62dd384ad94de6a977"
 }

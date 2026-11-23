@@ -158,3 +158,12 @@ def test_model_download_checks_the_hash(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert download_model.release_url("models-v1").endswith(
         "/releases/download/models-v1/plate_detector.onnx"
     )
+
+
+def test_known_releases_are_checked_by_hash() -> None:
+    known = download_model.KNOWN_SHA256["models-v1"]
+    assert download_model.expected_hash("models-v1", None, None) == known
+    assert download_model.expected_hash("models-v1", None, "ab" * 32) == "ab" * 32
+    # A custom URL or an unknown tag has nothing to check against unless a hash is given.
+    assert download_model.expected_hash("models-v1", "https://example.test/m.onnx", None) is None
+    assert download_model.expected_hash("models-v9", None, None) is None
