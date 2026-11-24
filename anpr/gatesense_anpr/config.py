@@ -25,6 +25,10 @@ class AnprSettings(BaseSettings):
     detector_iou: float = Field(default=0.5, ge=0, le=1)
 
     ocr_engine: Literal["easyocr", "paddleocr"] = "easyocr"
+    # Optional reading tweaks, off by default: on rendered webcam frames neither beat the
+    # defaults beyond noise (eval/results/README.md). Try them on your own camera's photos.
+    ocr_contrast: bool = False  # grey + CLAHE contrast on each plate crop before OCR
+    track_voting: Literal["string", "chars"] = "string"  # "chars": per-character votes
 
     # How many frames per second to analyse (cameras send 25-30; plates don't move that fast).
     sample_fps: float = Field(default=5.0, gt=0)
@@ -54,3 +58,5 @@ class AnprSettings(BaseSettings):
     preview_port: int = Field(default=8765, ge=0, le=65535)
     # Where the guard console runs, for the "register this visitor" link.
     console_url: str = "http://localhost:5173"
+    # Where the preview's "Save for testing" puts labelled photos (git-ignored).
+    samples_dir: Path = ANPR_DIR / "data" / "eval" / "webcam"

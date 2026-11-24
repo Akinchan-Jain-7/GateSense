@@ -208,7 +208,9 @@ def build_pipeline(settings: AnprSettings) -> "Pipeline":
         PlateTracker(
             gap_seconds=settings.track_gap_seconds,
             min_agreeing_reads=settings.track_min_agreeing_reads,
+            voting=settings.track_voting,
         ),
+        contrast=settings.ocr_contrast,
     )
 
 
@@ -233,6 +235,7 @@ def exit_buffer_path(path: Path | None) -> Path | None:
 
 def preview(args: argparse.Namespace, settings: AnprSettings) -> int:
     from gatesense_anpr.live import Lane, LiveState, Mode, run_preview
+    from gatesense_anpr.samples import SampleStore
     from gatesense_anpr.sources import is_folder, is_live, open_capture
 
     spec = args.source
@@ -244,7 +247,12 @@ def preview(args: argparse.Namespace, settings: AnprSettings) -> int:
     if not two_lanes:
         logger.info("ANPR_EXIT_DEVICE_KEY isn't set: the preview works as an entry camera only")
     modes: tuple[Mode, ...] = ("entry", "exit") if two_lanes else ("entry",)
-    state = LiveState(modes=modes, console_url=settings.console_url, source=spec)
+    state = LiveState(
+        modes=modes,
+        console_url=settings.console_url,
+        source=spec,
+        samples=SampleStore(settings.samples_dir),
+    )
 
     def callbacks(mode: Mode) -> dict[str, Any]:
         return {

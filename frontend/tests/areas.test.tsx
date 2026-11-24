@@ -3,7 +3,7 @@
  * admin dashboard. The Playwright journeys cover the real stack; these cover the screens'
  * behaviour quickly and in detail.
  */
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -12,6 +12,11 @@ import GuardConsole from '../src/features/guard/GuardConsole'
 import ResidentApp from '../src/features/resident/ResidentApp'
 import { setLanguage } from '../src/i18n'
 import { mockApi, page, renderRoutes, signInAs, user } from './utils'
+
+/** How many times the guard console has loaded the arrivals list. */
+function arrivalFetches(calls: Request[]): number {
+  return calls.filter((r) => r.method === 'GET' && r.url.includes('/api/v1/gate-events?')).length
+}
 
 const now = Date.now()
 const iso = (msFromNow: number) => new Date(now + msFromNow).toISOString()
@@ -215,6 +220,7 @@ describe('Guard console', () => {
     await userEvent.type(within(dialog).getByLabelText('Visitor name'), 'Kabir Rao')
     await userEvent.type(within(dialog).getByLabelText('Mobile number'), '9876543210')
     await userEvent.selectOptions(within(dialog).getByLabelText('Flat'), 'B-402')
+    const fetchesBeforeSubmit = arrivalFetches(api.calls)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Ask the resident' }))
     const body = (await bodyOf(api.calls, '/api/v1/visits')) as Record<string, unknown>
     expect(body).toMatchObject({
@@ -225,6 +231,11 @@ describe('Guard console', () => {
       category: 'guest',
     })
     expect(await screen.findByText('Asked B-402 to approve Kabir Rao')).toBeInTheDocument()
+    // The arrival is now linked to the visit: the list is fetched again so its
+    // "Register visitor" button goes away (no second registration for the same car).
+    await waitFor(() => {
+      expect(arrivalFetches(api.calls)).toBeGreaterThan(fetchesBeforeSubmit)
+    })
   })
 
   it('opens the register form from the gate camera preview link', async () => {

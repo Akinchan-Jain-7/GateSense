@@ -29,6 +29,7 @@ from gatesense_anpr.live import (
 )
 from gatesense_anpr.models import Box, Image, PlateRead
 from gatesense_anpr.pipeline import Pipeline, Sighting
+from gatesense_anpr.samples import SampleError, SampleStore
 from gatesense_anpr.tracker import PlateTracker
 from tests.conftest import T0
 from tests.test_pipeline_and_sources import FakeDetector, ScriptedOcr
@@ -626,3 +627,55 @@ def test_preview_dry_run_uses_one_printer_for_both_lanes(
 def test_an_empty_buffer_path_turns_the_buffer_off(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANPR_BUFFER_PATH", "")
     assert AnprSettings().buffer_path is None
+
+
+# --- "Save for testing" -----------------------------------------------------------------
+
+
+def test_samples_are_saved_with_labels(tmp_path: Path, frame_image: Image) -> None:
+    store = SampleStore(tmp_path / "webcam")
+    assert store.save(frame_image, "dl 01 ab 1234", "phone") == "phone/0001.jpg"
+    assert store.save(frame_image, "UP16BK2834", "phone") == "phone/0002.jpg"
+    assert store.save(frame_image, "KA05MN4821", "printed") == "printed/0001.jpg"
+
+    rows = (tmp_path / "webcam" / "labels.csv").read_text(encoding="utf-8").splitlines()
+    assert rows == [
+        "file,plate,condition",
+        "phone/0001.jpg,DL01AB1234,phone",
+        "phone/0002.jpg,UP16BK2834,phone",
+        "printed/0001.jpg,KA05MN4821,printed",
+    ]
+    assert cv2.imread(str(tmp_path / "webcam" / "phone" / "0001.jpg")) is not None
+    # A new run picks up the counts (and numbering) where the last one stopped.
+    again = SampleStore(tmp_path / "webcam")
+    assert again.summary() == {"phone": 2, "printed": 1}
+    assert again.save(frame_image, "DL01AB1234", "phone") == "phone/0003.jpg"
+
+
+def test_samples_need_a_plate_and_a_known_condition(tmp_path: Path, frame_image: Image) -> None:
+    store = SampleStore(tmp_path)
+    with pytest.raises(SampleError, match="exactly as written"):
+        store.save(frame_image, "hello", "phone")
+    with pytest.raises(SampleError, match="Condition must be one of"):
+        store.save(frame_image, "DL01AB1234", "../../etc")
+    assert not (tmp_path / "labels.csv").exists()
+
+
+def test_save_for_testing_from_the_page(
+    server: PreviewServer, tmp_path: Path, frame_image: Image
+) -> None:
+    body = {"plate": "DL01AB1234", "condition": "phone"}
+    status, _, reply = call(server, "POST", "/samples", body=body, headers=BUTTON)
+    assert status == 400 and json.loads(reply)["detail"] == "Saving test photos is off"
+
+    server.state.samples = SampleStore(tmp_path)
+    status, _, reply = call(server, "POST", "/samples", body=body, headers=BUTTON)
+    assert status == 400 and json.loads(reply)["detail"] == "No camera picture yet"
+
+    server.state.put_frame(frame_image)
+    status, _, reply = call(server, "POST", "/samples", body=body, headers=BUTTON)
+    saved = json.loads(reply)
+    assert status == 200
+    assert saved["saved"] == "phone/0001.jpg"
+    assert saved["samples"]["counts"] == {"phone": 1}
+    assert call(server, "POST", "/samples", body=body)[0] == 403  # needs the button header

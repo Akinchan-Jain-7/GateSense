@@ -61,6 +61,29 @@ is saved. If saving then failed, the camera retried, and the retry was "seen jus
 ignored. The car vanished. Now, if saving fails, we remove our own mark (only if it is
 still ours, checked inside one Redis script so nothing can change in between).
 
+## Measuring reading accuracy (added later the same day)
+
+When the owner saw slightly weaker reads on the real webcam, we **measured before
+changing anything**. `anpr/eval/webcam_benchmark.py` renders 140 "cars" in 7 webcam
+conditions (clear, small, blurry, tilted, dim, glare, phone screen), 6 frames each, and
+runs the real OCR with each candidate setting on *exactly the same frames*. Results:
+[anpr/eval/results/webcam_benchmark.md](../../anpr/eval/results/webcam_benchmark.md).
+
+- **What counts is the plate after the server's repair**, not the camera's raw text. The
+  camera often reads `O` for `0`, but the server fixes that, so "the camera read it
+  exactly" is the wrong goal on its own.
+- **No change beat the old settings beyond noise** (80.0% vs 78.6–81.4%, 1–2 cars out of
+  140), so the defaults stayed. The two most promising ideas (a contrast boost and
+  per-character voting) are optional settings to test on real photos.
+- **Per-character voting**: instead of voting for whole strings, vote for each position
+  separately, so `DL01AB1Z34`, `DL0IAB1234` and `DL01A81234` (each wrong in a different
+  place) still give `DL01AB1234`. Writing its test exposed a hidden limit: the tracker only
+  grouped reads within 1 edit of each other, so those three looked like three cars. It now
+  allows 2 edits in this mode.
+- **A synthetic bench is for comparing settings, not for headline numbers.** Its font
+  isn't the HSRP font. That's why the preview got *Save for testing*: real labelled
+  photos from the real camera give the real accuracy.
+
 ## Questions you might be asked
 
 - *Why not do it all in the browser with the webcam API?* Then the server would run the
@@ -72,6 +95,10 @@ still ours, checked inside one Redis script so nothing can change in between).
 - *What happens if the API is down during the demo?* The read is saved in SQLite and the
   page says *Server not reachable*; it is sent by itself when the API is back, and the
   page updates.
+- *Your reads were weak on the webcam. What did you do?* Built a benchmark first, tried five
+  changes on identical frames, and kept none, because none beat noise on the number that
+  matters (the plate after the server's repair). Then added a way to collect labelled
+  photos from the real camera, because that's what can show the real cause.
 - *How did you find the debounce bug?* By running the whole chain for real (camera
   program → API) instead of only unit tests: object storage wasn't running, the save
   failed, and the retry came back "debounced" with no event. Then a test reproduced it
@@ -80,6 +107,6 @@ still ours, checked inside one Redis script so nothing can change in between).
 ## Try it
 
 ```bash
-cd anpr && uv run pytest tests/test_live.py -q          # 46 tests, no camera needed
+cd anpr && uv run pytest tests/test_live.py tests/test_reading_options.py -q   # no camera needed
 cd backend && uv run pytest tests/test_webcam_devices.py -q
 ```

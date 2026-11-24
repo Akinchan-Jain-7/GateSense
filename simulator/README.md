@@ -28,7 +28,9 @@ uv run gatesense-sim --speed 20 --minutes 5 --seed 1       # busier, for a quick
 ```
 
 It needs a backend with the demo data (`uv run python -m app.seed` in `backend/`). At start
-it signs in as the demo admin and **rotates every camera key** to get keys it can use. When
+it signs in as the demo admin and **rotates every camera key** to get keys it can use,
+except real cameras such as the laptop webcam (`--leave-devices`), so a webcam demo can
+run next to it. When
 the demo is reset (nightly, or with the admin's "Reset demo" button), its sign-ins and keys
 stop working, so it starts over by itself.
 
@@ -40,6 +42,7 @@ stop working, so it starts over by itself.
 | `--guard` / `SIM_GUARD_EMAIL` | `guard@example.com` | The guard who registers visitors |
 | `--speed` / `SIM_SPEED` | `1` | Time compression: 2 = twice the arrivals, stays half as long |
 | `--tick` / `SIM_TICK_SECONDS` | `5` | How often it wakes up |
+| `--leave-devices` / `SIM_LEAVE_DEVICES` | `Laptop webcam` | Camera name prefixes it must not touch (comma-separated): real cameras keep their keys and get no simulated traffic |
 | `--seed` | random | Repeatable runs |
 | `--minutes` | forever | Stop after this long |
 

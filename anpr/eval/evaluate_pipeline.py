@@ -9,7 +9,8 @@ e.g. `night/0007.jpg,DL3CAS0042,night`.
 - default: full photos; the detector finds the plate, OCR reads the best box.
 - `--crops`: the images are already plate crops; measures OCR alone (for engine comparison).
 
-Writes eval/results/<name>.md and .json (name = e2e_<ocr> or ocr_<ocr>).
+Writes eval/results/<name>.md and .json (name = e2e_<ocr> or ocr_<ocr>, or --name).
+Webcam photos saved from the live preview: `... data/eval/webcam --name e2e_webcam`.
 """
 
 import argparse
@@ -26,7 +27,7 @@ from gatesense_anpr.config import AnprSettings
 from gatesense_anpr.detector import PlateDetector, crop
 from gatesense_anpr.metrics import Sample, markdown_table, summarise
 from gatesense_anpr.normaliser import clean
-from gatesense_anpr.ocr import OcrEngine, build_engine
+from gatesense_anpr.ocr import OcrEngine, build_engine, enhance_contrast
 
 RESULTS = Path(__file__).resolve().parent / "results"
 
@@ -39,13 +40,15 @@ def read_labels(folder: Path) -> list[tuple[Path, str, str]]:
         ]
 
 
-def predict(image: np.ndarray, ocr: OcrEngine, detector: PlateDetector | None) -> str:
+def predict(
+    image: np.ndarray, ocr: OcrEngine, detector: PlateDetector | None, *, contrast: bool = False
+) -> str:
     if detector is not None:
         detections = detector.detect(image)
         if not detections:
             return ""
         image = crop(image, detections[0].box)
-    result = ocr.read(image)
+    result = ocr.read(enhance_contrast(image) if contrast else image)
     return clean(result.text) if result else ""
 
 
@@ -56,6 +59,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--crops", action="store_true", help="images are plate crops (OCR only)")
     parser.add_argument("--model", type=Path, help="detector ONNX (default: from settings)")
     parser.add_argument("--out", type=Path, default=RESULTS)
+    parser.add_argument("--name", help="results file name (default: e2e_<ocr> or ocr_<ocr>)")
+    parser.add_argument(
+        "--contrast", action="store_true", help="grey + CLAHE before OCR (ANPR_OCR_CONTRAST)"
+    )
     args = parser.parse_args(argv)
 
     ocr = build_engine(args.ocr)
@@ -67,11 +74,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"skipping unreadable {path}")
             continue
         start = time.perf_counter()
-        predicted = predict(np.asarray(image, dtype=np.uint8), ocr, detector)
+        predicted = predict(
+            np.asarray(image, dtype=np.uint8), ocr, detector, contrast=args.contrast
+        )
         samples.append(Sample(condition, truth, predicted, (time.perf_counter() - start) * 1000))
 
     rows = summarise(samples)
-    name = f"{'ocr' if args.crops else 'e2e'}_{args.ocr}"
+    name = args.name or f"{'ocr' if args.crops else 'e2e'}_{args.ocr}"
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / f"{name}.json").write_text(
         json.dumps(

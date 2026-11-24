@@ -1,13 +1,15 @@
 # GateSense
 
 [![CI](https://github.com/Akinchan-Jain-7/GateSense/actions/workflows/ci.yml/badge.svg)](https://github.com/Akinchan-Jain-7/GateSense/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-backend%2096%25%20%C2%B7%20ANPR%2087%25%20%C2%B7%20web%2081%25-brightgreen)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-backend%2096%25%20%C2%B7%20ANPR%2092%25%20%C2%B7%20web%2081%25-brightgreen)](#testing)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Live demo](https://img.shields.io/badge/live%20demo-not%20deployed%20yet-lightgrey)
 
-<!-- Demo GIF goes here once recorded (docs/demo-script.md) -->
+![An unknown car reaches the camera; the guard registers the visitor; the resident approves on their phone and the car is let in](docs/assets/demo.gif)
 
-![Guard console: live arrivals, decisions, alerts and call tasks](docs/assets/guard-console.png)
+*Recorded from the running app: a camera read for an unknown car arrives on the guard
+console (left), the guard registers the visitor for flat B-402, and the resident approves
+on their phone (right). The car is let in and counted inside.*
 
 **GateSense is a gate and visitor system for housing societies.** A camera reads number
 plates, so residents drive in without stopping. Visitors are approved by the resident

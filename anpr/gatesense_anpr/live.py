@@ -43,6 +43,7 @@ import numpy as np
 
 from gatesense_anpr.models import Frame, Image, PlateRead
 from gatesense_anpr.pipeline import Pipeline, Sighting
+from gatesense_anpr.samples import CONDITIONS, SampleError, SampleStore
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +168,7 @@ class LiveState:
     analysed_fps: float = 0.0
     reset_requested: bool = False
     stopping: threading.Event = field(default_factory=threading.Event)
+    samples: SampleStore | None = None  # "Save for testing" (labelled photos)
     _jpeg: tuple[tuple[int, float], bytes] | None = None
 
     def __post_init__(self) -> None:
@@ -276,7 +278,26 @@ class LiveState:
         with self.lock:
             self.reset_requested = True
 
+    def save_sample(self, plate: str, condition: str) -> str:
+        """Save the current camera frame, labelled, for accuracy tests."""
+        if self.samples is None:
+            raise SampleError("Saving test photos is off")
+        with self.lock:
+            image = None if self.frame is None else self.frame.copy()
+        if image is None:
+            raise SampleError("No camera picture yet")
+        return self.samples.save(image, plate, condition)
+
     def snapshot(self) -> dict[str, Any]:
+        samples = (
+            {
+                "folder": str(self.samples.root),
+                "counts": self.samples.summary(),
+                "conditions": CONDITIONS,
+            }
+            if self.samples
+            else None
+        )
         with self.lock:
             return {
                 "mode": self.mode,
@@ -291,6 +312,7 @@ class LiveState:
                     s.text or "" for s in self._fresh_sightings() if s.text is not None
                 ],
                 "decisions": [asdict(d) for d in self.decisions],
+                "samples": samples,
             }
 
     def jpeg(self) -> bytes | None:
@@ -540,6 +562,13 @@ class PreviewHandler(BaseHTTPRequestHandler):
         elif self.path == "/rescan":
             state.request_rescan()
             self._json(HTTPStatus.OK, state.snapshot())
+        elif self.path == "/samples" and isinstance(body, dict):
+            try:
+                saved = state.save_sample(str(body.get("plate", "")), str(body.get("condition")))
+            except SampleError as error:
+                self._json(HTTPStatus.BAD_REQUEST, {"detail": str(error)})
+            else:
+                self._json(HTTPStatus.OK, {"saved": saved, **state.snapshot()})
         else:
             self._json(HTTPStatus.NOT_FOUND, {"detail": "not found"})
 

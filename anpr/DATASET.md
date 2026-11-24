@@ -74,3 +74,10 @@ two_wheeler/0003.jpg,UP16Z5678,two_wheeler
 - `plate`: exactly as on the plate, no spaces, upper case. Skip the "IND" mark.
 - Two-line plates: top line then bottom line (`UP16Z` + `5678` → `UP16Z5678`).
 - Keep evaluation photos **out of** the detector's training set, or the scores flatter it.
+
+### Quick start: label with the webcam
+
+The live preview (`gatesense-anpr --source 0 --preview`) has a **Save for testing** panel:
+it saves the current frame and the plate you type straight into this layout under
+`anpr/data/eval/webcam/` (conditions: `phone`, `printed`, `car`, `dim`, `angled`). See
+[docs/webcam-demo.md](../docs/webcam-demo.md#measure-the-real-reading-accuracy).

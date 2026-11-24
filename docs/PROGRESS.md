@@ -16,15 +16,47 @@ The agent updates this file at the start and end of every session.
 | — | Closing the gaps in Phases 0–7 | ✅ Merged (detector results in #13) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
 | 8 | Docker and deployment | 🟡 Built and merged; goes live once the owner picks a host | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
 | 9 | Polish, docs, release | ✅ Merged (owner publishes the two releases) | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
-| — | Laptop webcam demo (live preview) | 🟡 Built and tested; owner runs it once on the laptop | branch `webcam-demo` |
+| — | Laptop webcam demo (live preview) | ✅ Merged; works on the owner's laptop | [#17](https://github.com/Akinchan-Jain-7/GateSense/pull/17) |
+| — | Reading accuracy, test photos, demo GIF | 🟡 PR open | branch `webcam-ocr-accuracy` |
 
-**Now:** the laptop webcam demo is built on branch `webcam-demo` (section below); the
-owner tries it once on the laptop. Before that, everything the agent can build was merged. Left for the owner: publish the
+**Now:** finishing everything except hosting (the owner asked to leave Oracle for later):
+reading accuracy, test photos from the webcam, the README GIF, then the releases. Left for the owner: publish the
 `models-v1` and `v1.0.0` releases (steps in the handoff below), then pick a host so
 Phase 8 goes live (`docs/deployment.md`, "What the owner does").
 
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
+
+## Reading accuracy, test photos, demo GIF (2026-11-24)
+
+Branch: `webcam-ocr-accuracy`. The owner found webcam reads "slightly less accurate" and
+asked to finish the project except hosting.
+
+- [x] `eval/webcam_benchmark.py`: 140 rendered cars in 7 webcam conditions, real EasyOCR,
+      the server's real plate repair; compares reading settings on identical frames
+- [x] Measured 5 changes (crop margin, upscale, contrast, per-character voting, mixes):
+      none beat the defaults beyond noise on the plate after repair (80.0% vs 78.6–81.4%),
+      so the defaults stay; contrast and per-character voting are optional settings
+- [x] Per-character voting groups reads 2 edits apart (found by its test: at 1 edit, reads
+      wrong in different places looked like different cars)
+- [x] *Save for testing* on the preview page: frame + typed plate into
+      `anpr/data/eval/webcam/labels.csv`; `evaluate_pipeline.py --name --contrast`
+- [x] Simulator leaves the laptop webcam's cameras alone (it rotated every key, which
+      broke a webcam demo running next to it); `--leave-devices`
+- [x] README demo GIF (`docs/assets/demo.gif`, 280 KB): recorded from the running app with
+      Playwright screenshots (camera read → guard registers → resident approves → let in)
+- [x] Bug fixed (web), found while recording: after registering a visitor, the arrival
+      still offered *Register visitor* (the arrivals list wasn't refetched), inviting a
+      second registration of the same car. The register action and the live
+      `approval.requested` / `visit.updated` messages now refresh arrivals
+- [ ] **Owner:** save ~30 webcam photos and run `evaluate_pipeline.py` → real accuracy table
+- [ ] Releases `models-v1` and `v1.0.0`
+
+### Notes
+
+- Observation, not acted on: the bench's font makes EasyOCR read a leading `G` as `0`,
+  which the server can't repair (0 isn't paired with G). Changing the server waits for
+  real photos to show the same thing.
 
 ## Laptop webcam demo (2026-11-24)
 

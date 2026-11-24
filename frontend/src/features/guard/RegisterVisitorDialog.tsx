@@ -64,7 +64,8 @@ function RegisterForm({ prefill, onDone }: { prefill: RegisterPrefill; onDone: (
   const register = useAction(
     (body: Schemas['VisitorRegistration']) => unwrap(api.POST('/api/v1/visits', { body })),
     {
-      invalidate: [['visits'], ['approvals']],
+      // gate-events too: the arrival this visit was linked to stops offering "Register".
+      invalidate: [['visits'], ['approvals'], ['gate-events']],
       success: (result) =>
         t('register.sent', {
           flat: result.visit.flat_label,

@@ -14,9 +14,10 @@ This removes most near-duplicates before they reach the server, whose own deboun
 (ADR-0006) is exact-match only.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -42,6 +43,9 @@ def encode_snapshot(image: Image) -> bytes:
     return bytes(buffer)
 
 
+type Voting = Literal["string", "chars"]
+
+
 @dataclass
 class _Candidate:
     total_confidence: float = 0.0
@@ -60,17 +64,58 @@ class _Track:
     def winner(self) -> tuple[str, _Candidate]:
         return max(self.candidates.items(), key=lambda kv: (kv[1].total_confidence, kv[1].count))
 
+    def fused(self) -> tuple[str, _Candidate, bool]:
+        """Per-character vote over the reads of the most likely length.
+
+        Returns the voted text, a candidate summing that length's reads, and whether every
+        position has a clear majority (at least 2 of 3 reads agree), i.e. it's safe to send
+        early. Frames rarely all misread the *same* character, so a per-position vote can
+        recover the plate even when no single frame read all of it correctly.
+        """
+        by_length: dict[int, list[tuple[str, _Candidate]]] = defaultdict(list)
+        for text, candidate in self.candidates.items():
+            by_length[len(text)].append((text, candidate))
+        group = max(
+            by_length.values(),
+            key=lambda g: (sum(c.total_confidence for _, c in g), sum(c.count for _, c in g)),
+        )
+        chars: list[str] = []
+        clear = True
+        for position in range(len(group[0][0])):
+            weight: defaultdict[str, float] = defaultdict(float)
+            reads: Counter[str] = Counter()
+            for text, candidate in group:
+                weight[text[position]] += candidate.total_confidence
+                reads[text[position]] += candidate.count
+            best = max(weight, key=lambda char: (weight[char], reads[char]))
+            chars.append(best)
+            clear &= 3 * reads[best] >= 2 * sum(reads.values())
+        merged = _Candidate(
+            total_confidence=sum(c.total_confidence for _, c in group),
+            count=sum(c.count for _, c in group),
+            first_seen=min(c.first_seen for _, c in group if c.first_seen is not None),
+        )
+        _, sharpest = max(group, key=lambda tc: tc[1].best_confidence)
+        merged.best_confidence, merged.best_image = sharpest.best_confidence, sharpest.best_image
+        return "".join(chars), merged, clear
+
     def raw_texts(self) -> tuple[str, ...]:
         return tuple(sorted(self.candidates))
 
 
 class PlateTracker:
     def __init__(
-        self, *, gap_seconds: float = 2.0, min_agreeing_reads: int = 3, max_distance: int = 1
+        self,
+        *,
+        gap_seconds: float = 2.0,
+        min_agreeing_reads: int = 3,
+        max_distance: int = 1,
+        voting: Voting = "string",
     ) -> None:
         self.gap = timedelta(seconds=gap_seconds)
         self.min_agreeing_reads = min_agreeing_reads
         self.max_distance = max_distance
+        self.voting = voting
         self.tracks: list[_Track] = []
 
     def add(self, text: str, confidence: float, at: datetime, image: Image) -> list[PlateRead]:
@@ -89,11 +134,22 @@ class PlateTracker:
         if confidence > candidate.best_confidence:
             candidate.best_confidence, candidate.best_image = confidence, image
 
-        best_text, best = track.winner()
-        if not track.sent and best.count >= self.min_agreeing_reads:
+        best_text, best, ready_now = self._decide(track)
+        if not track.sent and ready_now:
             track.sent = True
             ready.append(self._to_read(track, best_text, best))
         return ready
+
+    def _decide(self, track: _Track) -> tuple[str, _Candidate, bool]:
+        """The track's text so far, and whether to send it now (before the car leaves)."""
+        if self.voting == "chars":
+            text, merged, clear = track.fused()
+            enough = merged.count >= self.min_agreeing_reads
+            # A plate that keeps flickering on one character is sent once it has been
+            # seen plenty, with the per-position vote's best guess.
+            return text, merged, enough and (clear or merged.count >= 3 * self.min_agreeing_reads)
+        text, best = track.winner()
+        return text, best, best.count >= self.min_agreeing_reads
 
     def expire(self, now: datetime) -> list[PlateRead]:
         """Close tracks not seen for `gap_seconds`; send the ones not sent yet."""
@@ -102,7 +158,8 @@ class PlateTracker:
         for track in self.tracks:
             if now - track.last_seen >= self.gap:
                 if not track.sent:
-                    ready.append(self._to_read(track, *track.winner()))
+                    text, candidate, _ = self._decide(track)
+                    ready.append(self._to_read(track, text, candidate))
             else:
                 still_open.append(track)
         self.tracks = still_open
@@ -110,7 +167,7 @@ class PlateTracker:
 
     def flush(self) -> list[PlateRead]:
         """End of input: send everything still pending."""
-        ready = [self._to_read(t, *t.winner()) for t in self.tracks if not t.sent]
+        ready = [self._to_read(t, *self._decide(t)[:2]) for t in self.tracks if not t.sent]
         self.tracks = []
         return ready
 
@@ -119,10 +176,13 @@ class PlateTracker:
         self.tracks = []
 
     def _find_track(self, text: str) -> _Track | None:
+        # Per-character voting needs the reads that are wrong in *different* places in one
+        # track (DL01AB1Z34 and DL0IAB1234 are 2 apart), so it groups one edit more loosely.
+        limit = self.max_distance + (1 if self.voting == "chars" else 0)
         best: tuple[int, _Track] | None = None
         for track in self.tracks:
             distance = min(edit_distance(text, known) for known in track.candidates)
-            if distance <= self.max_distance and (best is None or distance < best[0]):
+            if distance <= limit and (best is None or distance < best[0]):
                 best = (distance, track)
         return best[1] if best else None
 
