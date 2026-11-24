@@ -134,6 +134,28 @@ it stays.
   Resets replace every camera, so the old keys stop working. The preview says so: *The
   server doesn't know this camera*. The launcher does this for you on every start.
 
+- **Want a busy console behind your webcam demo?** Run the traffic simulator too
+  (`cd simulator; uv run gatesense-sim --speed 5`). It leaves the laptop webcam's cameras
+  alone, so both run side by side.
+
+## Measure the real reading accuracy
+
+The camera page has a **Save for testing** panel. Hold up a plate, check the plate number
+in the box (it follows the latest read; type over it if the read was wrong), pick what the
+camera sees (a phone screen, a printout, a real car...), and press **Save photo**. Each
+save stores the picture and the right answer in `anpr/data/eval/webcam/` (git ignores it:
+plates are personal data).
+
+After 30 or more, measure the whole chain (detector + OCR) on them:
+
+```powershell
+cd anpr
+uv run python eval/evaluate_pipeline.py data/eval/webcam --name e2e_webcam
+```
+
+The table lands in `anpr/eval/results/e2e_webcam.md`, per condition. These are real
+numbers for the README; share the table (not the photos) and they go in.
+
 ## Troubleshooting
 
 | What you see | What to do |
