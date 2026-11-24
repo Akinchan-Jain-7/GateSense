@@ -114,6 +114,10 @@ class PlateTracker:
         self.tracks = []
         return ready
 
+    def reset(self) -> None:
+        """Forget every open track without sending it (the live preview's "scan again")."""
+        self.tracks = []
+
     def _find_track(self, text: str) -> _Track | None:
         best: tuple[int, _Track] | None = None
         for track in self.tracks:

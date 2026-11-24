@@ -21,6 +21,7 @@ records stop making sense (an exit with no entry). With it:
 import json
 import logging
 import sqlite3
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -67,74 +68,91 @@ class OfflineBuffer:
         if str(path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
         # Autocommit: every push/remove is durable the moment it returns.
-        self.db = sqlite3.connect(str(path), isolation_level=None)
+        # The live preview opens the buffer on one thread and sends from another, so the
+        # connection may cross threads; the lock makes sure only one uses it at a time.
+        self.lock = threading.RLock()
+        self.db = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
         self.db.executescript(SCHEMA)
 
     def push(self, read: PlateRead) -> int:
-        cursor = self.db.execute(
-            "INSERT INTO pending (plate_text, confidence, captured_at, snapshot, votes, raw_texts)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                read.plate_text,
-                read.confidence,
-                read.captured_at.isoformat(),
-                read.snapshot_jpeg,
-                read.votes,
-                json.dumps(list(read.raw_texts)),
-            ),
-        )
-        return int(cursor.lastrowid or 0)
-
-    def oldest(self, limit: int = 50) -> list[tuple[int, PlateRead]]:
-        rows = self.db.execute(
-            "SELECT id, plate_text, confidence, captured_at, snapshot, votes, raw_texts"
-            " FROM pending ORDER BY id LIMIT ?",
-            (limit,),
-        ).fetchall()
-        return [
-            (
-                row_id,
-                PlateRead(
-                    plate_text=text,
-                    confidence=confidence,
-                    captured_at=datetime.fromisoformat(captured_at),
-                    snapshot_jpeg=snapshot,
-                    votes=votes,
-                    raw_texts=tuple(json.loads(raw_texts)),
+        with self.lock:
+            cursor = self.db.execute(
+                "INSERT INTO pending"
+                " (plate_text, confidence, captured_at, snapshot, votes, raw_texts)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    read.plate_text,
+                    read.confidence,
+                    read.captured_at.isoformat(),
+                    read.snapshot_jpeg,
+                    read.votes,
+                    json.dumps(list(read.raw_texts)),
                 ),
             )
-            for row_id, text, confidence, captured_at, snapshot, votes, raw_texts in rows
-        ]
+            return int(cursor.lastrowid or 0)
+
+    def oldest(self, limit: int = 50) -> list[tuple[int, PlateRead]]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT id, plate_text, confidence, captured_at, snapshot, votes, raw_texts"
+                " FROM pending ORDER BY id LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [
+                (
+                    row_id,
+                    PlateRead(
+                        plate_text=text,
+                        confidence=confidence,
+                        captured_at=datetime.fromisoformat(captured_at),
+                        snapshot_jpeg=snapshot,
+                        votes=votes,
+                        raw_texts=tuple(json.loads(raw_texts)),
+                    ),
+                )
+                for row_id, text, confidence, captured_at, snapshot, votes, raw_texts in rows
+            ]
 
     def remove(self, row_id: int) -> None:
-        self.db.execute("DELETE FROM pending WHERE id = ?", (row_id,))
+        with self.lock:
+            self.db.execute("DELETE FROM pending WHERE id = ?", (row_id,))
 
     def record_failure(self, row_id: int, error: str) -> None:
-        self.db.execute(
-            "UPDATE pending SET attempts = attempts + 1, last_error = ? WHERE id = ?",
-            (error[:500], row_id),
-        )
+        with self.lock:
+            self.db.execute(
+                "UPDATE pending SET attempts = attempts + 1, last_error = ? WHERE id = ?",
+                (error[:500], row_id),
+            )
 
     def reject(self, row_id: int, read: PlateRead, status_code: int, detail: object) -> None:
-        with self.db:  # both statements or neither
+        with self.lock, self.db:  # both statements or neither
             self.db.execute("BEGIN")
             self.db.execute(
                 "INSERT INTO rejected (id, plate_text, captured_at, status_code, detail)"
                 " VALUES (?, ?, ?, ?, ?)",
-                (row_id, read.plate_text, read.captured_at.isoformat(), status_code, str(detail)),
+                (
+                    row_id,
+                    read.plate_text,
+                    read.captured_at.isoformat(),
+                    status_code,
+                    str(detail),
+                ),
             )
             self.db.execute("DELETE FROM pending WHERE id = ?", (row_id,))
 
     def __len__(self) -> int:
-        return int(self.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0])
+        with self.lock:
+            return int(self.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0])
 
     def rejected_count(self) -> int:
-        return int(self.db.execute("SELECT COUNT(*) FROM rejected").fetchone()[0])
+        with self.lock:
+            return int(self.db.execute("SELECT COUNT(*) FROM rejected").fetchone()[0])
 
     def close(self) -> None:
-        self.db.close()
+        with self.lock:
+            self.db.close()
 
 
 Outcome = Literal["sent", "buffered", "rejected"]
@@ -164,6 +182,7 @@ class BufferedSender:
         buffer: OfflineBuffer,
         *,
         on_sent: Callable[[PlateRead, dict[str, Any]], None] | None = None,
+        on_rejected: Callable[[PlateRead, GateEventRejectedError], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
         first_wait: float = 5.0,
         max_wait: float = 300.0,
@@ -171,6 +190,7 @@ class BufferedSender:
         self.client = client
         self.buffer = buffer
         self.on_sent = on_sent
+        self.on_rejected = on_rejected
         self.clock = clock
         self.first_wait = first_wait
         self.max_wait = max_wait
@@ -193,6 +213,8 @@ class BufferedSender:
                 return "buffered"
             if isinstance(error, GateEventRejectedError):
                 logger.error("%s", error)
+                if self.on_rejected:
+                    self.on_rejected(read, error)
                 return "rejected"
             raise
         self._failures = 0
@@ -220,6 +242,8 @@ class BufferedSender:
                     if isinstance(error, GateEventRejectedError):
                         logger.error("dropping buffered read %s: %s", read.plate_text, error)
                         self.buffer.reject(row_id, read, error.status_code, error.detail)
+                        if self.on_rejected:
+                            self.on_rejected(read, error)
                         result.rejected += 1
                         continue
                     raise

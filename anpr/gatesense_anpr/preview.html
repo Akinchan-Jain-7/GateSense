@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GateSense · Gate camera</title>
+    <style>
+      :root {
+        --bg: #111317;
+        --surface: #171a1f;
+        --surface-2: #1e2228;
+        --border: #2a2f37;
+        --text: #e8ebef;
+        --muted: #a0a8b3;
+        --faint: #848c97;
+        --accent: #7a97ff;
+        --ok: #4ade80;
+        --warn: #fbbf24;
+        --bad: #f87171;
+        --info: #7a97ff;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.5 'IBM Plex Sans',
+          'Segoe UI',
+          system-ui,
+          sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      .brand {
+        font-weight: 600;
+        font-size: 16px;
+      }
+      .brand span {
+        color: var(--faint);
+        font-weight: 400;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .lanes {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .lanes button {
+        min-height: 44px;
+        min-width: 96px;
+        padding: 0 16px;
+        border: 0;
+        background: var(--surface);
+        color: var(--muted);
+        font: inherit;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .lanes button + button {
+        border-left: 1px solid var(--border);
+      }
+      .lanes button[aria-pressed='true'] {
+        background: var(--accent);
+        color: #0b1020;
+      }
+      .lanes button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn.primary {
+        min-height: 56px;
+        width: 100%;
+        border-color: transparent;
+        background: var(--accent);
+        color: #0b1020;
+        font-size: 16px;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 400px;
+        gap: 24px;
+        padding: 24px;
+      }
+      @media (max-width: 1000px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .video {
+        position: relative;
+        overflow: hidden;
+        aspect-ratio: 16 / 9;
+        display: grid;
+        place-items: center;
+        background: #000;
+      }
+      .video img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .video .placeholder {
+        position: absolute;
+        color: var(--muted);
+        text-align: center;
+        padding: 24px;
+      }
+      .lane-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: rgba(17, 19, 23, 0.85);
+        border: 1px solid var(--border);
+        font-weight: 600;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 12px;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .meta strong {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      kbd {
+        padding: 1px 6px;
+        border: 1px solid var(--border);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font: 12px/1.4 ui-monospace, monospace;
+      }
+      aside {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .latest {
+        padding: 20px;
+        border-left: 4px solid var(--border);
+      }
+      .latest[data-tone='ok'] {
+        border-left-color: var(--ok);
+      }
+      .latest[data-tone='warn'] {
+        border-left-color: var(--warn);
+      }
+      .latest[data-tone='bad'] {
+        border-left-color: var(--bad);
+      }
+      .latest[data-tone='info'] {
+        border-left-color: var(--info);
+      }
+      .label {
+        color: var(--faint);
+        font-size: 12px;
+        margin: 0 0 8px;
+      }
+      .latest h2 {
+        margin: 16px 0 4px;
+        font-size: 20px;
+        line-height: 1.3;
+      }
+      .latest p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      .tone-ok {
+        color: var(--ok);
+      }
+      .tone-warn {
+        color: var(--warn);
+      }
+      .tone-bad {
+        color: var(--bad);
+      }
+      .tone-info {
+        color: var(--info);
+      }
+      /* The plate chip: a small white HSRP plate with the blue IND strip (docs/design.md). */
+      .plate {
+        display: inline-flex;
+        align-items: stretch;
+        border: 2px solid #15181d;
+        border-radius: 4px;
+        background: #fff;
+        color: #15181d;
+        font:
+          600 28px/1 'IBM Plex Sans Condensed',
+          'Arial Narrow',
+          sans-serif;
+        letter-spacing: 0.04em;
+        overflow: hidden;
+      }
+      .plate .ind {
+        display: grid;
+        place-items: end center;
+        width: 22px;
+        padding-bottom: 3px;
+        background: #2147c9;
+        color: #fff;
+        font-size: 8px;
+        letter-spacing: 0;
+      }
+      .plate .num {
+        padding: 8px 12px;
+        white-space: nowrap;
+      }
+      .plate.small {
+        font-size: 15px;
+      }
+      .plate.small .ind {
+        width: 12px;
+        font-size: 0;
+      }
+      .plate.small .num {
+        padding: 3px 6px;
+      }
+      ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      ol li {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+      }
+      .history h3 {
+        margin: 0;
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+      .history .empty {
+        padding: 12px 16px 16px;
+        color: var(--faint);
+        border-top: 1px solid var(--border);
+      }
+      .time {
+        color: var(--faint);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      .steps {
+        margin: 0;
+        padding: 16px 16px 16px 36px;
+        color: var(--muted);
+      }
+      .steps li {
+        margin-bottom: 4px;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">GateSense <span>· Gate camera</span></div>
+      <div class="spacer"></div>
+      <div class="lanes" role="group" aria-label="Lane this camera watches">
+        <button type="button" id="lane-entry" aria-pressed="true">Entry</button>
+        <button type="button" id="lane-exit" aria-pressed="false">Exit</button>
+      </div>
+      <button type="button" class="btn" id="rescan">Scan again</button>
+    </header>
+
+    <main>
+      <section>
+        <div class="card video">
+          <img id="video" alt="Live camera picture with detected plates outlined" />
+          <div class="placeholder" id="placeholder">Waiting for the camera...</div>
+          <div class="lane-badge" id="lane-badge">Entry lane</div>
+        </div>
+        <div class="meta">
+          <span>Source <strong id="source">-</strong></span>
+          <span>Analysing <strong id="fps">-</strong> frames/s</span>
+          <span>In view <strong id="in-view">no plate</strong></span>
+          <span><kbd>E</kbd> entry <kbd>X</kbd> exit <kbd>Space</kbd> scan again</span>
+        </div>
+      </section>
+
+      <aside>
+        <div class="card latest" id="latest" data-tone="info" aria-live="polite">
+          <p class="label">Latest decision</p>
+          <div id="latest-body">
+            <ol class="steps">
+              <li>Hold a number plate (printed, or a photo on your phone) up to the camera.</li>
+              <li>Keep it steady for a second; a box appears around it.</li>
+              <li>The server's decision shows up here.</li>
+            </ol>
+          </div>
+        </div>
+        <div class="card history">
+          <h3>Recent reads</h3>
+          <ol id="history"></ol>
+          <div class="empty" id="history-empty">Nothing yet.</div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      'use strict'
+      const HEADER = { 'X-GateSense-Preview': '1', 'Content-Type': 'application/json' }
+      const $ = (id) => document.getElementById(id)
+      let state = null
+      let lastLatestKey = ''
+
+      // Group a plate the way it is printed: UP16 AB 1234, 22 BH 1234 AA.
+      function formatPlate(p) {
+        if (!p) return ''
+        const bh = /^(\d{2})(BH)(\d{4})([A-Z]{1,2})$/.exec(p)
+        if (bh) return `${bh[1]} ${bh[2]} ${bh[3]} ${bh[4]}`
+        const std = /^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$/.exec(p)
+        if (std) return [std[1] + std[2], std[3], std[4]].filter(Boolean).join(' ')
+        return p
+      }
+
+      function el(tag, props = {}, children = []) {
+        const node = document.createElement(tag)
+        for (const [k, v] of Object.entries(props)) {
+          if (k === 'class') node.className = v
+          else if (k === 'text') node.textContent = v
+          else node.setAttribute(k, v)
+        }
+        for (const c of children) node.append(c)
+        return node
+      }
+
+      function plateChip(text, small = false) {
+        return el('span', { class: small ? 'plate small' : 'plate', 'aria-label': `Plate ${text}` }, [
+          el('span', { class: 'ind', text: 'IND', 'aria-hidden': 'true' }),
+          el('span', { class: 'num', text: formatPlate(text) }),
+        ])
+      }
+
+      function time(iso) {
+        return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      }
+
+      function registerLink(d) {
+        const url = new URL('/guard', state.console_url)
+        url.searchParams.set('register', d.plate_normalized || d.plate)
+        if (d.event_id) url.searchParams.set('event', d.event_id)
+        return url.toString()
+      }
+
+      function renderLatest(d) {
+        const box = $('latest')
+        const body = $('latest-body')
+        box.dataset.tone = d.tone
+        const children = [
+          plateChip(d.plate_normalized || d.plate),
+          el('h2', { class: `tone-${d.tone}`, text: d.title }),
+          el('p', { text: d.detail }),
+        ]
+        if (d.match_result === 'unknown' && d.mode === 'entry' && d.status === 'created') {
+          children.push(
+            el('a', {
+              class: 'btn primary',
+              href: registerLink(d),
+              target: 'gatesense-console',
+              rel: 'noopener',
+              text: 'Register this visitor',
+            }),
+          )
+        }
+        body.replaceChildren(...children)
+      }
+
+      function renderHistory(decisions) {
+        const list = $('history')
+        list.replaceChildren(
+          ...decisions.map((d) =>
+            el('li', {}, [
+              plateChip(d.plate_normalized || d.plate, true),
+              el('span', { class: `tone-${d.tone}`, text: d.title }),
+              el('span', { class: 'time', text: `${d.mode} · ${time(d.captured_at)}` }),
+            ]),
+          ),
+        )
+        $('history-empty').hidden = decisions.length > 0
+      }
+
+      function render() {
+        if (!state) return
+        for (const mode of ['entry', 'exit']) {
+          const button = $(`lane-${mode}`)
+          button.setAttribute('aria-pressed', String(state.mode === mode))
+          button.disabled = !state.modes.includes(mode)
+          button.title = button.disabled
+            ? 'Set ANPR_EXIT_DEVICE_KEY to use this camera for the exit lane too'
+            : ''
+        }
+        $('lane-badge').textContent = state.mode === 'entry' ? 'Entry lane' : 'Exit lane'
+        $('source').textContent = state.source === '0' ? 'webcam' : state.source
+        $('fps').textContent = state.analysed_fps
+        $('in-view').textContent = state.plates_in_view.map(formatPlate).join(', ') || 'no plate'
+        const placeholder = $('placeholder')
+        placeholder.hidden = !state.camera_error && state.has_frame
+        placeholder.textContent = state.camera_error || 'Waiting for the camera...'
+
+        const latest = state.decisions[0]
+        const key = latest ? JSON.stringify(latest) : ''
+        if (latest && key !== lastLatestKey) {
+          lastLatestKey = key
+          renderLatest(latest)
+        }
+        renderHistory(state.decisions.slice(1))
+      }
+
+      async function poll() {
+        try {
+          const res = await fetch('/state', { cache: 'no-store' })
+          state = await res.json()
+          render()
+        } catch {
+          $('placeholder').hidden = false
+          $('placeholder').textContent = 'The camera program has stopped. Start it again in the terminal.'
+        }
+      }
+
+      async function post(path, body = {}) {
+        const res = await fetch(path, { method: 'POST', headers: HEADER, body: JSON.stringify(body) })
+        if (res.ok) {
+          state = await res.json()
+          render()
+        }
+      }
+
+      $('video').src = '/stream.mjpg'
+
+      $('lane-entry').addEventListener('click', () => post('/mode', { mode: 'entry' }))
+      $('lane-exit').addEventListener('click', () => post('/mode', { mode: 'exit' }))
+      $('rescan').addEventListener('click', () => post('/rescan'))
+      document.addEventListener('keydown', (e) => {
+        if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey || e.altKey) return
+        if (e.key === 'e' || e.key === 'E') post('/mode', { mode: 'entry' })
+        else if (e.key === 'x' || e.key === 'X') post('/mode', { mode: 'exit' })
+        else if (e.key === ' ') {
+          e.preventDefault()
+          post('/rescan')
+        }
+      })
+
+      poll()
+      setInterval(poll, 700)
+    </script>
+  </body>
+</html>
