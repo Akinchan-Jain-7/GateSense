@@ -89,6 +89,10 @@ describe('applyMessage', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['approvals'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['visits'] })
     invalidateQueries.mockClear()
+    // A registered visitor is linked to the car's read: arrivals must refetch too.
+    applyMessage(client, { type: 'approval.requested' })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['gate-events'] })
+    invalidateQueries.mockClear()
     applyMessage(client, { type: 'something.else' })
     expect(invalidateQueries).not.toHaveBeenCalled()
   })

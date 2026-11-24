@@ -38,8 +38,9 @@ const UNAUTHORIZED = 4401
 export const INVALIDATES: Record<string, string[][]> = {
   'gate_event.created': [['gate-events'], ['review-queue']],
   'alert.created': [['alerts']],
-  'visit.updated': [['visits']],
-  'approval.requested': [['approvals'], ['visits']],
+  // Arrivals show whether a car's read is linked to a visit, and registering links it.
+  'visit.updated': [['visits'], ['gate-events']],
+  'approval.requested': [['approvals'], ['visits'], ['gate-events']],
   'approval.decided': [['approvals'], ['visits']],
   'approval.timed_out': [['approvals'], ['visits']],
   'escalation.created': [['escalations'], ['visits']],
