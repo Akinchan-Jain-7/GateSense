@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { vi } from 'vitest'
 
 import { makeQueryClient, Providers } from '../src/app/App'
+import { setTokens } from '../src/lib/api/tokens'
 import { LiveProvider } from '../src/lib/live'
 
 type Handler = (request: Request) => unknown
@@ -41,11 +42,9 @@ export function mockApi(routes: Record<string, unknown>) {
   return { calls, fetchMock }
 }
 
+/** Sign in through the app's token store (it keeps a copy in memory, not only storage). */
 export function signInAs(role: 'guard' | 'resident' | 'admin') {
-  localStorage.setItem(
-    'gatesense.tokens',
-    JSON.stringify({ access: `${role}-token`, refresh: `${role}-refresh` }),
-  )
+  setTokens({ access: `${role}-token`, refresh: `${role}-refresh` })
 }
 
 export function user(

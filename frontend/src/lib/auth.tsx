@@ -42,12 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: signedIn ? (me.data ?? null) : null,
       status: !signedIn ? 'anonymous' : me.data ? 'ready' : me.isError ? 'anonymous' : 'loading',
       signIn: async (email, password) => {
-        queryClient.clear()
         await signIn(email, password)
-        return queryClient.query({
-          queryKey: ['me'],
-          queryFn: () => unwrap(api.GET('/api/v1/me')),
-        })
+        const user = await unwrap(api.GET('/api/v1/me'))
+        // Switching accounts (the demo's role buttons): drop the old role's data, and
+        // update 'me' in place. Clearing the whole cache would orphan the useQuery above:
+        // it kept showing the old user, so the new role's home sent it back to the old one.
+        queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+        queryClient.setQueryData(['me'], user)
+        return user
       },
       signOut: async () => {
         await signOut()
