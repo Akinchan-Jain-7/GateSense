@@ -227,6 +227,45 @@ describe('Guard console', () => {
     expect(await screen.findByText('Asked B-402 to approve Kabir Rao')).toBeInTheDocument()
   })
 
+  it('opens the register form from the gate camera preview link', async () => {
+    wideScreen()
+    signInAs('guard')
+    const api = guardApi()
+    const event = '6f3511ae-06fb-4b2a-83f8-884fff649f5f'
+    const { router } = renderRoutes(
+      [{ path: '/guard', element: <GuardConsole /> }],
+      `/guard?register=ka05%20mn%204821&event=${event}`,
+    )
+
+    const dialog = await screen.findByRole('dialog', { name: 'Register a visitor' })
+    expect(within(dialog).getByLabelText('Vehicle number (optional)')).toHaveValue('KA05MN4821')
+    expect(router.state.location.search).toBe('') // a refresh won't open it again
+    await userEvent.type(within(dialog).getByLabelText('Visitor name'), 'Kabir Rao')
+    await userEvent.type(within(dialog).getByLabelText('Mobile number'), '9876543210')
+    await userEvent.selectOptions(within(dialog).getByLabelText('Flat'), 'B-402')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ask the resident' }))
+    const body = (await bodyOf(api.calls, '/api/v1/visits')) as Record<string, unknown>
+    expect(body).toMatchObject({ plate: 'KA05MN4821', gate_event_id: event })
+  })
+
+  it('ignores a malformed event id in the preview link', async () => {
+    wideScreen()
+    signInAs('guard')
+    const api = guardApi()
+    renderRoutes(
+      [{ path: '/guard', element: <GuardConsole /> }],
+      '/guard?register=KA05MN4821&event=not-an-id',
+    )
+
+    const dialog = await screen.findByRole('dialog', { name: 'Register a visitor' })
+    await userEvent.type(within(dialog).getByLabelText('Visitor name'), 'Kabir Rao')
+    await userEvent.type(within(dialog).getByLabelText('Mobile number'), '9876543210')
+    await userEvent.selectOptions(within(dialog).getByLabelText('Flat'), 'B-402')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ask the resident' }))
+    const body = (await bodyOf(api.calls, '/api/v1/visits')) as Record<string, unknown>
+    expect(body).toMatchObject({ plate: 'KA05MN4821', gate_event_id: null })
+  })
+
   it('switches to Hindi', async () => {
     wideScreen()
     signInAs('guard')

@@ -37,6 +37,19 @@ uv run python -m gatesense_anpr.download_model  # plate_detector.onnx from GitHu
 uv run gatesense-anpr --source path/to/gate.mp4  # or 0 (webcam), rtsp://…, or a folder
 ```
 
+### Live preview (demos, camera setup)
+
+```bash
+uv run gatesense-anpr --source 0 --preview    # opens http://127.0.0.1:8765
+```
+
+A local page with the camera picture, a box around each plate, the text read, and the
+server's decision for each car (*Resident car: entry logged*, *New car: register the
+visitor*...). With `ANPR_EXIT_DEVICE_KEY` set, **Entry / Exit** buttons switch one camera
+between two lanes (each with its own key and offline buffer). For a laptop webcam demo,
+`cd backend && uv run python -m app.webcam_devices` writes both keys into `anpr/.env`;
+on Windows `scripts/webcam-demo.ps1` does everything. Guide: [docs/webcam-demo.md](../docs/webcam-demo.md).
+
 All settings are `ANPR_*` environment variables (or `anpr/.env`); see
 `gatesense_anpr/config.py`: API URL, device key, model path, OCR engine, detector
 thresholds, frames per second to analyse, tracker timings, retries.

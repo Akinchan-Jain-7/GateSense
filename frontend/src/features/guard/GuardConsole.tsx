@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound, Languages, LogOut, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { setLanguage } from '@/i18n'
 import { api, unwrap } from '@/lib/api/client'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
+import { cleanPlateInput } from '@/lib/plates'
 import { useLive, useLiveStatus } from '@/lib/live'
 import type { Alert, Approval, Escalation } from '@/lib/queries'
 import { useAreaTheme } from '@/lib/theme'
@@ -100,13 +102,45 @@ function SignOutButton({
   )
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * "Register this visitor" links from the gate camera's live preview
+ * (`/guard?register=KA05MN4821&event=<gate event id>`): the form opens with the plate filled
+ * in and the car's read linked, so approving the visit lets that waiting car in.
+ */
+function registerLink(params: URLSearchParams): RegisterPrefill | null {
+  const plate = params.get('register')
+  if (plate === null) return null
+  const event = params.get('event')
+  return {
+    plate: cleanPlateInput(plate).slice(0, 12),
+    gateEventId: event && UUID.test(event) ? event : undefined,
+  }
+}
+
 export default function GuardConsole() {
   useAreaTheme('dark') // night shifts: dark unless the guard picks otherwise
   const { t, i18n } = useTranslation()
   const { user, signOut } = useAuth()
-  const [registerOpen, setRegisterOpen] = useState(false)
-  const [prefill, setPrefill] = useState<RegisterPrefill>({})
+  const [params, setParams] = useSearchParams()
+  const [linked] = useState(() => registerLink(params))
+  const [registerOpen, setRegisterOpen] = useState(linked !== null)
+  const [prefill, setPrefill] = useState<RegisterPrefill>(linked ?? {})
   const [codeOpen, setCodeOpen] = useState(false)
+
+  // Open the linked form once: drop the parameters so a refresh doesn't open it again.
+  useEffect(() => {
+    if (!params.has('register')) return
+    setParams(
+      (current) => {
+        current.delete('register')
+        current.delete('event')
+        return current
+      },
+      { replace: true },
+    )
+  }, [params, setParams])
 
   const openRegister = (values: RegisterPrefill = {}) => {
     setPrefill(values)

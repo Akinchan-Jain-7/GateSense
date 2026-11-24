@@ -2,12 +2,15 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx2
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_snapshot_storage
+from app.main import app
 from app.models import (
     Alert,
     Device,
@@ -700,3 +703,35 @@ async def test_simultaneous_identical_uploads_store_one_event(
     # (No row count here: in tests both "requests" share one connection, so the winner's
     # row is rolled back with the request. In production they are separate transactions.)
     assert not list(snapshot_storage.root.rglob("*.jpg"))  # the loser's snapshot was removed
+
+
+class FlakyStorage(LocalSnapshotStorage):
+    """Fails the first save, like object storage that is restarting."""
+
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.failures_left = 1
+
+    async def save(self, key: str, data: bytes, content_type: str) -> None:
+        if self.failures_left:
+            self.failures_left -= 1
+            raise OSError("storage unavailable")
+        await super().save(key, data, content_type)
+
+
+async def test_a_retry_after_a_failed_save_is_a_new_read_not_debounced(
+    client: httpx2.AsyncClient, entry_key: str, tmp_path: Path, db: AsyncSession
+) -> None:
+    """A read that fails while being stored must not leave its plate "seen just now":
+    the camera's retry would then be debounced, and the car never logged."""
+    storage = FlakyStorage(tmp_path)
+    app.dependency_overrides[get_snapshot_storage] = lambda: storage
+    at = ago(1)
+    with pytest.raises(OSError, match="storage unavailable"):  # the API answers 500
+        await post_read(client, entry_key, "UP16AB1234", at=at, snapshot=JPEG)
+
+    retry = await post_read(client, entry_key, "UP16AB1234", at=at, snapshot=JPEG)
+
+    assert retry.status_code == 201, retry.text
+    assert retry.json()["status"] == "created"
+    assert await db.scalar(select(func.count()).select_from(GateEvent)) == 1

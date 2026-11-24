@@ -145,44 +145,50 @@ async def ingest_read(
         if folded_into is not None:
             return IngestResult(status="debounced", event=await db.get(GateEvent, folded_into))
 
-    # 4. Store the event (and its snapshot).
-    event = GateEvent(
-        id=event_id,
-        society_id=device.gate.society_id,
-        gate_id=device.gate_id,
-        device_id=device.id,
-        direction=device.direction,
-        plate_raw=read.plate_text[:32],
-        # Set now so the INSERT carries them (apply_match sets the same values).
-        plate_normalized=reading.plate if reading else None,
-        ocr_fixes=reading.fixes if reading else 0,
-        confidence=read.confidence,
-        captured_at=captured_at,
-        event_hash=fingerprint,
-        match_result=MatchResult.UNKNOWN,
-        needs_review=False,
-    )
-    if read.snapshot is not None and image_type is not None:
-        content_type, extension = image_type
-        event.snapshot_path = snapshot_key(event, extension)
-        await storage.save(event.snapshot_path, read.snapshot, content_type)
+    # 4. Store the event (and its snapshot), then 5. decide what it is. If anything fails
+    #    here the event isn't saved, so the debounce mark from step 3 is released: the
+    #    camera retries, and the retry must count as a new read, not as "seen just now".
     try:
-        # INSERT inside a savepoint: the unique event_hash catches a copy of this read
-        # arriving at the same moment, and only the savepoint is rolled back.
-        async with db.begin_nested():
-            db.add(event)
-    except IntegrityError:
-        # The same read arrived twice at the same moment and the other request won.
-        if event.snapshot_path:
-            await storage.delete(event.snapshot_path)
-        winner = await db.scalar(select(GateEvent).where(GateEvent.event_hash == fingerprint))
-        if winner is None:
-            raise
-        return IngestResult(status="duplicate", event=winner)
+        event = GateEvent(
+            id=event_id,
+            society_id=device.gate.society_id,
+            gate_id=device.gate_id,
+            device_id=device.id,
+            direction=device.direction,
+            plate_raw=read.plate_text[:32],
+            # Set now so the INSERT carries them (apply_match sets the same values).
+            plate_normalized=reading.plate if reading else None,
+            ocr_fixes=reading.fixes if reading else 0,
+            confidence=read.confidence,
+            captured_at=captured_at,
+            event_hash=fingerprint,
+            match_result=MatchResult.UNKNOWN,
+            needs_review=False,
+        )
+        if read.snapshot is not None and image_type is not None:
+            content_type, extension = image_type
+            event.snapshot_path = snapshot_key(event, extension)
+            await storage.save(event.snapshot_path, read.snapshot, content_type)
+        try:
+            # INSERT inside a savepoint: the unique event_hash catches a copy of this read
+            # arriving at the same moment, and only the savepoint is rolled back.
+            async with db.begin_nested():
+                db.add(event)
+        except IntegrityError:
+            # The same read arrived twice at the same moment and the other request won.
+            if event.snapshot_path:
+                await storage.delete(event.snapshot_path)
+            winner = await db.scalar(select(GateEvent).where(GateEvent.event_hash == fingerprint))
+            if winner is None:
+                raise
+            return IngestResult(status="duplicate", event=winner)
 
-    # 5. Decide what it is.
-    await apply_match(db, settings, event, reading, trusted=False)
-    await db.commit()
+        await apply_match(db, settings, event, reading, trusted=False)
+        await db.commit()
+    except BaseException:
+        if plate_key:
+            await debounce.release(redis, device_id=device.id, plate=plate_key, event_id=event_id)
+        raise
     await _publish(db, redis, event)
     logger.info(
         "gate event",

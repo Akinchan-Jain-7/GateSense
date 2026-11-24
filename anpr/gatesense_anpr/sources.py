@@ -7,9 +7,11 @@ Every source yields `Frame`s at roughly `sample_fps`. Capture times:
 - image folders: each image is treated as a separate sighting (see `is_folder`).
 """
 
+import sys
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -35,13 +37,40 @@ def image_folder(path: Path) -> Iterator[Frame]:
         yield Frame(image=np.asarray(image, dtype=np.uint8), captured_at=datetime.now(UTC))
 
 
+def open_capture(spec: str, *, width: int | None = None, height: int | None = None) -> Any:
+    """Open a camera index, stream URL or video file with OpenCV.
+
+    Webcams (a number) on Windows open through DirectShow first: the default backend
+    (Media Foundation) can take 10+ seconds to start a laptop camera. For webcams we also
+    ask for `width` x `height`; the camera picks the nearest size it supports.
+    """
+    if spec.isdigit():
+        index = int(spec)
+        capture = None
+        if sys.platform == "win32":
+            capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not capture.isOpened():
+                capture.release()
+                capture = None
+        if capture is None:
+            capture = cv2.VideoCapture(index)
+        if width and height:
+            capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    else:
+        capture = cv2.VideoCapture(spec)
+    if not capture.isOpened():
+        capture.release()
+        hint = " (is another app using the camera?)" if spec.isdigit() else ""
+        raise OSError(f"Could not open video source {spec!r}{hint}")
+    return capture
+
+
 def video(
     spec: str, sample_fps: float, *, start: datetime | None = None, max_frames: int | None = None
 ) -> Iterator[Frame]:
     live = is_live(spec)
-    capture = cv2.VideoCapture(int(spec) if spec.isdigit() else spec)
-    if not capture.isOpened():
-        raise OSError(f"Could not open video source {spec!r}")
+    capture = open_capture(spec)
     video_fps = capture.get(cv2.CAP_PROP_FPS) or 25.0
     step = max(1, round(video_fps / sample_fps))
     start = start or datetime.now(UTC)

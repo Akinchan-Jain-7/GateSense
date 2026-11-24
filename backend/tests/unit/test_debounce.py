@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from redis.asyncio import Redis
 
-from app.services.debounce import check_and_mark
+from app.services.debounce import check_and_mark, release
 
 T0 = datetime(2026, 11, 21, 9, 0, tzinfo=UTC)
 COOLDOWN = 30
@@ -76,3 +76,38 @@ async def test_redis_down_fails_open() -> None:
         assert await _read(dead, uuid.uuid4(), "DL01AB1234", T0) is None
     finally:
         await dead.aclose()
+
+
+async def test_release_forgets_a_window_whose_event_was_never_saved(redis_client: Redis) -> None:
+    device, lost = uuid.uuid4(), uuid.uuid4()
+    await check_and_mark(
+        redis_client,
+        device_id=device,
+        plate="DL01AB1234",
+        captured_at=T0,
+        new_event_id=lost,
+        cooldown_seconds=COOLDOWN,
+    )
+    await release(redis_client, device_id=device, plate="DL01AB1234", event_id=lost)
+    # The camera's retry starts a new event instead of joining one that doesn't exist.
+    assert await _read(redis_client, device, "DL01AB1234", T0 + timedelta(seconds=1)) is None
+
+
+async def test_release_leaves_a_newer_window_alone(redis_client: Redis) -> None:
+    device, current = uuid.uuid4(), uuid.uuid4()
+    await check_and_mark(
+        redis_client,
+        device_id=device,
+        plate="DL01AB1234",
+        captured_at=T0,
+        new_event_id=current,
+        cooldown_seconds=COOLDOWN,
+    )
+    await release(redis_client, device_id=device, plate="DL01AB1234", event_id=uuid.uuid4())
+    assert await _read(redis_client, device, "DL01AB1234", T0 + timedelta(seconds=1)) == current
+
+
+async def test_release_with_redis_down_does_not_raise() -> None:
+    down = Redis.from_url("redis://127.0.0.1:1/0", socket_connect_timeout=0.2)
+    await release(down, device_id=uuid.uuid4(), plate="DL01AB1234", event_id=uuid.uuid4())
+    await down.aclose()

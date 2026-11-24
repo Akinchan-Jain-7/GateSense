@@ -28,6 +28,12 @@ The login page has one-click buttons for each role:
 The vehicle simulator keeps the demo busy with realistic traffic: residents, unknown
 visitors, guest passes, unclear plates, a watchlisted car, and overstays.
 
+**With a real camera:** your laptop webcam can be the gate camera. Hold up a plate: a
+resident's car is logged in, a new car goes to the guard to register. A live page shows
+what the camera sees and what the server decided
+([docs/webcam-demo.md](docs/webcam-demo.md), one command on Windows:
+`.\scripts\webcam-demo.ps1`).
+
 ## What it does
 
 - **Residents drive straight in.** The camera reads the plate, and a resident's car is
@@ -160,6 +166,7 @@ Each big decision has an Architecture Decision Record in [docs/adr/](docs/adr/):
 - [0012 Frontend architecture and design system](docs/adr/0012-frontend-architecture.md)
 - [0013 Hardening, offline mode and observability](docs/adr/0013-hardening-and-observability.md)
 - [0014 Deployment architecture](docs/adr/0014-deployment-architecture.md) (proposed)
+- [0015 Laptop webcam demo](docs/adr/0015-laptop-webcam-demo.md)
 
 ## Testing
 
@@ -168,7 +175,8 @@ Each big decision has an Architecture Decision Record in [docs/adr/](docs/adr/):
   migrations, the plate normaliser (table-driven), the visit state machine, and
   time-mocked escalation runs.
 - **ANPR:** `cd anpr && uv run pytest --cov`: detector, frame tracker, offline buffer and
-  ordered replay, the pipeline on video files and image folders.
+  ordered replay, the pipeline on video files and image folders, and the live preview
+  (threads, the local page and its security checks).
 - **Frontend:** `cd frontend && npm test` (Vitest + Testing Library), and `npm run e2e`
   (Playwright journeys and accessibility checks) against the running stack.
 - **CI** runs all of the above with Postgres and Redis service containers, Playwright

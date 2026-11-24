@@ -16,13 +16,52 @@ The agent updates this file at the start and end of every session.
 | — | Closing the gaps in Phases 0–7 | ✅ Merged (detector results in #13) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
 | 8 | Docker and deployment | 🟡 Built and merged; goes live once the owner picks a host | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
 | 9 | Polish, docs, release | ✅ Merged (owner publishes the two releases) | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
+| — | Laptop webcam demo (live preview) | 🟡 Built and tested; owner runs it once on the laptop | branch `webcam-demo` |
 
-**Now:** everything the agent can build is merged. Left for the owner: publish the
+**Now:** the laptop webcam demo is built on branch `webcam-demo` (section below); the
+owner tries it once on the laptop. Before that, everything the agent can build was merged. Left for the owner: publish the
 `models-v1` and `v1.0.0` releases (steps in the handoff below), then pick a host so
 Phase 8 goes live (`docs/deployment.md`, "What the owner does").
 
 **Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
 bot token for one real end-to-end test, and a first run of the app on their own machine.
+
+## Laptop webcam demo (2026-11-24)
+
+Branch: `webcam-demo`. The owner asked for the laptop webcam to work as the gate camera:
+scan a plate, log a known car's entry, and ask for the visitor's details for a new car.
+Guide: `docs/webcam-demo.md`. Decisions: ADR-0015. Study notes: `docs/learn/webcam-demo.md`.
+
+- [x] `gatesense-anpr --source 0 --preview`: local page (127.0.0.1:8765) with the camera
+      picture, plate boxes, the text read and the server's decision; Entry / Exit lanes
+      from one webcam (`ANPR_EXIT_DEVICE_KEY`, own offline buffer per lane); Scan again;
+      keys E / X / Space; plain-words reasons for refused reads (bad key after a reset)
+- [x] Webcams on Windows open through DirectShow (fast start) at 1280x720
+- [x] `python -m app.webcam_devices`: "Laptop webcam - entry/exit" devices on the Main Gate,
+      fresh keys written to `anpr/.env`, audit entries, plates to try + a printable page
+- [x] Guard console: `/guard?register=<plate>&event=<id>` opens the register form prefilled
+      and linked to the car's read (the preview's *Register this visitor* button)
+- [x] `scripts/webcam-demo.ps1`: one command on Windows (model from Downloads or the
+      release, hash-checked; packages; keys; opens the console; starts the camera)
+- [x] Tests: ANPR 63 → 109 (coverage 87% → 91%), backend 528 (+21), frontend 53 → 55
+- [x] Verified for real in the build workspace: synthetic gate video → stand-in detector →
+      real EasyOCR → real API (Postgres + Redis): resident entry and exit logged, new car →
+      register → visit waiting for B-402's approval and linked to the read, watchlist
+      alert; the page and the register link checked in headless Chrome
+- [ ] **Owner:** run `.\scripts\webcam-demo.ps1` once on the laptop (the PowerShell
+      script and a real webcam couldn't be tried in the build workspace)
+
+### Notes and deviations
+
+- **A web page instead of an OpenCV window:** the worker uses headless OpenCV, which has
+  no windows, and the GUI build can't be installed beside it (ADR-0015).
+- **Bug fixed (backend):** a read whose snapshot save failed left its plate debounced, so
+  the camera's retry was dropped and the car never logged. The debounce mark is now
+  released when storing fails.
+- **Bug fixed (ANPR):** `ANPR_BUFFER_PATH=` (empty) crashed instead of turning the buffer
+  off. The offline buffer can now be used from more than one thread (with a lock).
+- **Accuracy caveat:** the detector was trained on photos of cars; a photo of a car's front
+  on a phone works better than a bare plate. Not measured on a real webcam yet.
 
 ## Handoff (2026-11-23, ~15:30 IST)
 
