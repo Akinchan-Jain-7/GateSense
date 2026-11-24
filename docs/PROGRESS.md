@@ -17,10 +17,11 @@ The agent updates this file at the start and end of every session.
 | 8 | Docker and deployment | 🟡 Built and merged; goes live once the owner picks a host | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
 | 9 | Polish, docs, release | ✅ Merged (owner publishes the two releases) | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
 | — | Laptop webcam demo (live preview) | ✅ Merged; works on the owner's laptop | [#17](https://github.com/Akinchan-Jain-7/GateSense/pull/17) |
-| — | Reading accuracy, test photos, demo GIF | 🟡 PR open | branch `webcam-ocr-accuracy` |
+| — | Reading accuracy, test photos, demo GIF | ✅ Done | [#18](https://github.com/Akinchan-Jain-7/GateSense/pull/18) |
 
-**Now:** finishing everything except hosting (the owner asked to leave Oracle for later):
-reading accuracy, test photos from the webcam, the README GIF, then the releases. Left for the owner: publish the
+**Now:** everything except hosting is done (the owner asked to leave Oracle for later).
+Left: hosting (Phase 8 goes live), the `models-v1` model file upload, and ~30 webcam
+photos for real accuracy numbers. Left for the owner: publish the
 `models-v1` and `v1.0.0` releases (steps in the handoff below), then pick a host so
 Phase 8 goes live (`docs/deployment.md`, "What the owner does").
 
