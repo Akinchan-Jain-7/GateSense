@@ -7,7 +7,7 @@ from typing import Protocol
 from gatesense_anpr.detector import crop
 from gatesense_anpr.models import Box, Detection, Frame, Image, PlateRead
 from gatesense_anpr.normaliser import clean, looks_like_plate
-from gatesense_anpr.ocr import OcrEngine
+from gatesense_anpr.ocr import OcrEngine, enhance_contrast
 from gatesense_anpr.tracker import PlateTracker
 
 logger = logging.getLogger(__name__)
@@ -37,11 +37,13 @@ class Pipeline:
         tracker: PlateTracker,
         *,
         max_plates_per_frame: int = 3,
+        contrast: bool = False,
     ) -> None:
         self.detector = detector
         self.ocr = ocr
         self.tracker = tracker
         self.max_plates_per_frame = max_plates_per_frame
+        self.contrast = contrast
         # What the last processed frame contained (for the live preview's boxes).
         self.last_sightings: list[Sighting] = []
 
@@ -49,7 +51,8 @@ class Pipeline:
         ready: list[PlateRead] = []
         sightings: list[Sighting] = []
         for detection in self.detector.detect(frame.image)[: self.max_plates_per_frame]:
-            result = self.ocr.read(crop(frame.image, detection.box))
+            plate = crop(frame.image, detection.box)
+            result = self.ocr.read(enhance_contrast(plate) if self.contrast else plate)
             text = clean(result.text) if result is not None else ""
             if result is None or not looks_like_plate(text):
                 if result is not None:

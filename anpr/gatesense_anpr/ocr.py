@@ -31,6 +31,19 @@ def prepare_crop(plate: Image, target_height: int = 64) -> Image:
     return np.asarray(resized, dtype=np.uint8)
 
 
+def enhance_contrast(plate: Image) -> Image:
+    """Grey + CLAHE (local contrast): lifts dark text out of dim, washed-out or glary crops.
+
+    CLAHE evens out contrast tile by tile, so a reflection on one end of the plate doesn't
+    flatten the characters at the other end the way a global stretch would.
+    """
+    if plate.size == 0:
+        return plate
+    grey = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(2, 8))
+    return np.asarray(cv2.cvtColor(clahe.apply(grey), cv2.COLOR_GRAY2BGR), dtype=np.uint8)
+
+
 def join_lines(pieces: list[tuple[str, float, float]]) -> OcrResult | None:
     """Merge text pieces (text, confidence, top y) into one plate string.
 

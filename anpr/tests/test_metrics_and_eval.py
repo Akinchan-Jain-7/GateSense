@@ -93,8 +93,9 @@ def test_evaluate_ocr_on_crops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     monkeypatch.setattr(evaluate_pipeline, "build_engine", lambda name: FakeOcr())
     out = tmp_path / "results"
-    assert evaluate_pipeline.main([str(data), "--crops", "--out", str(out)]) == 0
-    summary = json.loads((out / "ocr_easyocr.json").read_text())["summary"]
+    args = [str(data), "--crops", "--out", str(out), "--contrast", "--name", "ocr_webcam"]
+    assert evaluate_pipeline.main(args) == 0
+    summary = json.loads((out / "ocr_webcam.json").read_text())["summary"]
     assert [(r["condition"], r["plate_accuracy"]) for r in summary] == [
         ("day", 1.0),
         ("night", 0.0),

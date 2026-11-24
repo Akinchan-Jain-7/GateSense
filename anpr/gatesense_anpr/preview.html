@@ -295,6 +295,45 @@
       .steps li {
         margin-bottom: 4px;
       }
+      .samples {
+        display: grid;
+        gap: 8px;
+        padding: 16px;
+      }
+      .samples h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .samples label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .samples input,
+      .samples select {
+        min-height: 44px;
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+      }
+      .samples input {
+        font-family: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .samples input:focus-visible,
+      .samples select:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .hint {
+        margin: 0;
+        color: var(--faint);
+        font-size: 12px;
+      }
       .sr-only {
         position: absolute;
         width: 1px;
@@ -341,6 +380,19 @@
             </ol>
           </div>
         </div>
+        <form class="card samples" id="samples" hidden>
+          <h3>Save for testing</h3>
+          <p class="hint">
+            Save this picture with the correct plate. A few dozen of these measure the real
+            reading accuracy on your camera.
+          </p>
+          <label for="sample-plate">Correct plate</label>
+          <input id="sample-plate" autocomplete="off" spellcheck="false" placeholder="DL01AB1234" />
+          <label for="sample-condition">What the camera sees</label>
+          <select id="sample-condition"></select>
+          <button class="btn" type="submit">Save photo</button>
+          <p class="hint" id="sample-status" aria-live="polite"></p>
+        </form>
         <div class="card history">
           <h3>Recent reads</h3>
           <ol id="history"></ol>
@@ -457,6 +509,35 @@
           renderLatest(latest)
         }
         renderHistory(state.decisions.slice(1))
+        renderSamples()
+      }
+
+      // "Save for testing": the plate field follows the latest read until you type in it.
+      let plateEdited = false
+      let conditionsFilled = false
+      function renderSamples() {
+        const form = $('samples')
+        form.hidden = !state.samples
+        if (!state.samples) return
+        if (!conditionsFilled) {
+          $('sample-condition').replaceChildren(
+            ...Object.entries(state.samples.conditions).map(([value, label]) =>
+              el('option', { value, text: `${value}: ${label}` }),
+            ),
+          )
+          conditionsFilled = true
+        }
+        const latest = state.decisions[0]
+        if (!plateEdited && latest && document.activeElement !== $('sample-plate')) {
+          $('sample-plate').value = latest.plate_normalized || latest.plate
+        }
+        const counts = Object.entries(state.samples.counts)
+        const total = counts.reduce((sum, [, n]) => sum + n, 0)
+        if (!$('sample-status').dataset.message) {
+          $('sample-status').textContent = total
+            ? `Saved ${total}: ${counts.map(([c, n]) => `${n} ${c}`).join(', ')}.`
+            : 'Nothing saved yet.'
+        }
       }
 
       async function poll() {
@@ -480,11 +561,36 @@
 
       $('video').src = '/stream.mjpg'
 
+      $('sample-plate').addEventListener('input', () => {
+        plateEdited = true
+      })
+      $('samples').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const status = $('sample-status')
+        const res = await fetch('/samples', {
+          method: 'POST',
+          headers: HEADER,
+          body: JSON.stringify({ plate: $('sample-plate').value, condition: $('sample-condition').value }),
+        })
+        const body = await res.json()
+        status.dataset.message = '1'
+        status.textContent = res.ok ? `Saved ${body.saved}.` : body.detail
+        setTimeout(() => {
+          delete status.dataset.message
+        }, 4000)
+        if (res.ok) {
+          plateEdited = false
+          state = body
+          render()
+        }
+      })
+
       $('lane-entry').addEventListener('click', () => post('/mode', { mode: 'entry' }))
       $('lane-exit').addEventListener('click', () => post('/mode', { mode: 'exit' }))
       $('rescan').addEventListener('click', () => post('/rescan'))
       document.addEventListener('keydown', (e) => {
-        if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey || e.altKey) return
+        const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
+        if (typing || e.ctrlKey || e.metaKey || e.altKey) return
         if (e.key === 'e' || e.key === 'E') post('/mode', { mode: 'entry' })
         else if (e.key === 'x' || e.key === 'X') post('/mode', { mode: 'exit' })
         else if (e.key === ' ') {

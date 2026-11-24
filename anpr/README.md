@@ -50,6 +50,12 @@ between two lanes (each with its own key and offline buffer). For a laptop webca
 `cd backend && uv run python -m app.webcam_devices` writes both keys into `anpr/.env`;
 on Windows `scripts/webcam-demo.ps1` does everything. Guide: [docs/webcam-demo.md](../docs/webcam-demo.md).
 
+Optional reading settings, off by default because on the webcam bench neither beat the
+defaults beyond noise ([eval/results/README.md](eval/results/README.md)):
+`ANPR_OCR_CONTRAST=true` (grey + CLAHE on each crop) and `ANPR_TRACK_VOTING=chars`
+(per-character votes across frames). Try them on your own photos first:
+`eval/evaluate_pipeline.py --contrast`.
+
 All settings are `ANPR_*` environment variables (or `anpr/.env`); see
 `gatesense_anpr/config.py`: API URL, device key, model path, OCR engine, detector
 thresholds, frames per second to analyse, tracker timings, retries.
@@ -81,6 +87,7 @@ good (invalid data) is moved to a `rejected` table so it can't block the queue. 
 | `eval/benchmark_detector.py` | CPU latency, FP32 vs INT8 dynamic vs INT8 static | `eval/results/detector_latency.md` |
 | `eval/evaluate_pipeline.py` | plate / character accuracy per condition | `eval/results/e2e_<ocr>.md`, `ocr_<ocr>.md` |
 | `eval/make_demo_video.py` | builds a synthetic gate video + stand-in detector to test the wiring | — |
+| `eval/webcam_benchmark.py` | reading settings (crop, upscale, contrast, voting) on webcam-like rendered frames, 7 conditions | `eval/results/webcam_benchmark.md` |
 
 Current results and what is still pending: [eval/results/README.md](eval/results/README.md).
 

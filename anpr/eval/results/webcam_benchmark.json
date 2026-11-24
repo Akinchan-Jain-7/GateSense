@@ -1,0 +1,335 @@
+{
+  "meta": {
+    "plates": 20,
+    "frames_per_car": 6,
+    "cars": 140,
+    "ocr": "easyocr",
+    "seed": 7
+  },
+  "results": {
+    "baseline": {
+      "description": "Before: 5% margin, upscale to 64 px, whole-string votes",
+      "ms_per_read": 233.5,
+      "conditions": {
+        "clear": {
+          "frame": 0.7417,
+          "car": 0.75,
+          "repaired": 0.9,
+          "chars": 0.9744
+        },
+        "all": {
+          "frame": 0.6512,
+          "car": 0.6857,
+          "repaired": 0.8,
+          "chars": 0.9574
+        },
+        "small": {
+          "frame": 0.6,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9589
+        },
+        "blurry": {
+          "frame": 0.5833,
+          "car": 0.65,
+          "repaired": 0.7,
+          "chars": 0.9483
+        },
+        "tilted": {
+          "frame": 0.5167,
+          "car": 0.5,
+          "repaired": 0.7,
+          "chars": 0.9233
+        },
+        "dim": {
+          "frame": 0.6833,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9644
+        },
+        "glare": {
+          "frame": 0.675,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9583
+        },
+        "phone": {
+          "frame": 0.7583,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9739
+        }
+      }
+    },
+    "margin": {
+      "description": "+ 12% margin around the box",
+      "ms_per_read": 260.8,
+      "conditions": {
+        "clear": {
+          "frame": 0.725,
+          "car": 0.75,
+          "repaired": 0.9,
+          "chars": 0.9694
+        },
+        "all": {
+          "frame": 0.6393,
+          "car": 0.6857,
+          "repaired": 0.7857,
+          "chars": 0.9529
+        },
+        "small": {
+          "frame": 0.5667,
+          "car": 0.7,
+          "repaired": 0.75,
+          "chars": 0.9583
+        },
+        "blurry": {
+          "frame": 0.5667,
+          "car": 0.6,
+          "repaired": 0.65,
+          "chars": 0.9383
+        },
+        "tilted": {
+          "frame": 0.5167,
+          "car": 0.55,
+          "repaired": 0.75,
+          "chars": 0.9478
+        },
+        "dim": {
+          "frame": 0.6833,
+          "car": 0.75,
+          "repaired": 0.8,
+          "chars": 0.9683
+        },
+        "glare": {
+          "frame": 0.675,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9589
+        },
+        "phone": {
+          "frame": 0.7417,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9294
+        }
+      }
+    },
+    "upscale": {
+      "description": "+ upscale to 96 px",
+      "ms_per_read": 266.5,
+      "conditions": {
+        "clear": {
+          "frame": 0.725,
+          "car": 0.75,
+          "repaired": 0.9,
+          "chars": 0.9694
+        },
+        "all": {
+          "frame": 0.6571,
+          "car": 0.7071,
+          "repaired": 0.8143,
+          "chars": 0.9544
+        },
+        "small": {
+          "frame": 0.6167,
+          "car": 0.8,
+          "repaired": 0.85,
+          "chars": 0.9633
+        },
+        "blurry": {
+          "frame": 0.5917,
+          "car": 0.6,
+          "repaired": 0.7,
+          "chars": 0.9433
+        },
+        "tilted": {
+          "frame": 0.55,
+          "car": 0.55,
+          "repaired": 0.75,
+          "chars": 0.9422
+        },
+        "dim": {
+          "frame": 0.7,
+          "car": 0.8,
+          "repaired": 0.85,
+          "chars": 0.9739
+        },
+        "glare": {
+          "frame": 0.675,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9589
+        },
+        "phone": {
+          "frame": 0.7417,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9294
+        }
+      }
+    },
+    "contrast": {
+      "description": "+ grey and CLAHE contrast",
+      "ms_per_read": 436.0,
+      "conditions": {
+        "clear": {
+          "frame": 0.7667,
+          "car": 0.8,
+          "repaired": 0.9,
+          "chars": 0.9744
+        },
+        "all": {
+          "frame": 0.6774,
+          "car": 0.7143,
+          "repaired": 0.8071,
+          "chars": 0.9622
+        },
+        "small": {
+          "frame": 0.6083,
+          "car": 0.75,
+          "repaired": 0.8,
+          "chars": 0.9533
+        },
+        "blurry": {
+          "frame": 0.6667,
+          "car": 0.6,
+          "repaired": 0.65,
+          "chars": 0.9478
+        },
+        "tilted": {
+          "frame": 0.6,
+          "car": 0.6,
+          "repaired": 0.75,
+          "chars": 0.9483
+        },
+        "dim": {
+          "frame": 0.7,
+          "car": 0.8,
+          "repaired": 0.9,
+          "chars": 0.9744
+        },
+        "glare": {
+          "frame": 0.7,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9633
+        },
+        "phone": {
+          "frame": 0.7,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9739
+        }
+      }
+    },
+    "chars": {
+      "description": "+ per-character voting across frames",
+      "ms_per_read": 264.2,
+      "conditions": {
+        "clear": {
+          "frame": 0.7667,
+          "car": 0.75,
+          "repaired": 0.9,
+          "chars": 0.9694
+        },
+        "all": {
+          "frame": 0.6774,
+          "car": 0.7214,
+          "repaired": 0.8071,
+          "chars": 0.9652
+        },
+        "small": {
+          "frame": 0.6083,
+          "car": 0.75,
+          "repaired": 0.8,
+          "chars": 0.9533
+        },
+        "blurry": {
+          "frame": 0.6667,
+          "car": 0.65,
+          "repaired": 0.65,
+          "chars": 0.9633
+        },
+        "tilted": {
+          "frame": 0.6,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9639
+        },
+        "dim": {
+          "frame": 0.7,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9689
+        },
+        "glare": {
+          "frame": 0.7,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9633
+        },
+        "phone": {
+          "frame": 0.7,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9739
+        }
+      }
+    },
+    "chars-no-contrast": {
+      "description": "margin + upscale + per-character voting",
+      "ms_per_read": 273.0,
+      "conditions": {
+        "clear": {
+          "frame": 0.725,
+          "car": 0.8,
+          "repaired": 0.9,
+          "chars": 0.9744
+        },
+        "all": {
+          "frame": 0.6571,
+          "car": 0.6929,
+          "repaired": 0.8,
+          "chars": 0.9542
+        },
+        "small": {
+          "frame": 0.6167,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9583
+        },
+        "blurry": {
+          "frame": 0.5917,
+          "car": 0.55,
+          "repaired": 0.65,
+          "chars": 0.9378
+        },
+        "tilted": {
+          "frame": 0.55,
+          "car": 0.55,
+          "repaired": 0.75,
+          "chars": 0.9428
+        },
+        "dim": {
+          "frame": 0.7,
+          "car": 0.75,
+          "repaired": 0.8,
+          "chars": 0.9683
+        },
+        "glare": {
+          "frame": 0.675,
+          "car": 0.7,
+          "repaired": 0.8,
+          "chars": 0.9633
+        },
+        "phone": {
+          "frame": 0.7417,
+          "car": 0.75,
+          "repaired": 0.85,
+          "chars": 0.9344
+        }
+      }
+    }
+  }
+}
