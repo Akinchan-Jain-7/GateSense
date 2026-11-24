@@ -80,6 +80,11 @@ runs the real OCR with each candidate setting on *exactly the same frames*. Resu
   place) still give `DL01AB1234`. Writing its test exposed a hidden limit: the tracker only
   grouped reads within 1 edit of each other, so those three looked like three cars. It now
   allows 2 edits in this mode.
+- **Then the real camera found what the bench couldn't.** Every real read ended in `IND`,
+  the small mark on the plate's blue strip. It sits lower than the number, and the OCR
+  joins text top to bottom, so it came out last: `HR76AOOO5IND`. The server only knew to
+  drop `IND` at the start. Lesson: look at the raw reads from the real device before
+  tuning anything.
 - **A synthetic bench is for comparing settings, not for headline numbers.** Its font
   isn't the HSRP font. That's why the preview got *Save for testing*: real labelled
   photos from the real camera give the real accuracy.

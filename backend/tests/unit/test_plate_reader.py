@@ -29,6 +29,13 @@ READABLE = [
     ("  ka05  mn 0042\n", "KA05MN0042", 0),
     # --- HSRP "IND" mark read as part of the plate --------------------------------
     ("IND DL01AB1234", "DL01AB1234", 0),
+    # Real laptop-webcam reads (2026-11-24): the mark sits below the number, so OCR
+    # read it last, often with its D as O.
+    ("HR76AOOO5IND", "HR76A0005", 3),
+    ("HR76A0OO5IND", "HR76A0005", 2),
+    ("HR6ZA9100IND", "HR6ZA9100", 0),
+    ("DL01AB1234INO", "DL01AB1234", 0),
+    ("1NDUP16BK2834", "UP16BK2834", 0),
     ("INDUP16Z5678", "UP16Z5678", 0),
     # --- Letters where digits must be (district or number) ------------------------
     ("DLO1AB1234", "DL01AB1234", 1),  # O -> 0 in the district

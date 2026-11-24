@@ -53,6 +53,10 @@ asked to finish the project except hosting.
 - [ ] **Owner:** save ~30 webcam photos and run `evaluate_pipeline.py` → real accuracy table
 - [ ] Releases `models-v1` and `v1.0.0`
 
+- [x] **Bug fixed (real webcam):** reads ended in the HSRP "IND" mark (`HR76AOOO5IND`), so
+      no read became a plate. The camera drops an OCR piece that is only the mark; the
+      server strips it at either end, including look-alikes (`INO`, `IN0`, `1ND`)
+
 ### Notes
 
 - Observation, not acted on: the bench's font makes EasyOCR read a leading `G` as `0`,
