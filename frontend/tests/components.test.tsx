@@ -65,6 +65,43 @@ describe('Landing page', () => {
       expect(router.state.location.pathname).toBe('/guard')
     })
   })
+
+  it('switching demo roles opens the new role’s home', async () => {
+    // Bug found in a live tour: signed in as the guard, "Try the resident app" landed on
+    // /guard with the resident's token, because the signed-in user wasn't updated.
+    signInAs('guard')
+    mockApi({
+      'GET /api/v1/demo': DEMO,
+      'POST /api/v1/auth/login': {
+        access_token: 'resident-token',
+        refresh_token: 'resident-refresh',
+        expires_in: 900,
+        token_type: 'bearer',
+      },
+      'GET /api/v1/me': (request: Request) =>
+        request.headers.get('Authorization') === 'Bearer resident-token'
+          ? user('resident')
+          : user('guard'),
+    })
+    const home = (role: 'guard' | 'resident') => (
+      <RequireRole role={role} fallback={<p>loading</p>}>
+        <p>{role} home</p>
+      </RequireRole>
+    )
+    const { router } = renderRoutes(
+      [
+        { path: '/', element: <Landing /> },
+        { path: '/guard', element: home('guard') },
+        { path: '/resident', element: home('resident') },
+      ],
+      '/guard',
+    )
+    expect(await screen.findByText('guard home')).toBeInTheDocument() // the guard is known
+    await router.navigate('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Try the resident app' }))
+    expect(await screen.findByText('resident home')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/resident')
+  })
 })
 
 describe('Login', () => {

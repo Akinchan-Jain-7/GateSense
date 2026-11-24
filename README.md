@@ -1,6 +1,7 @@
 # GateSense
 
 [![CI](https://github.com/Akinchan-Jain-7/GateSense/actions/workflows/ci.yml/badge.svg)](https://github.com/Akinchan-Jain-7/GateSense/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Akinchan-Jain-7/GateSense?filter=v*&label=release)](https://github.com/Akinchan-Jain-7/GateSense/releases/latest)
 [![Coverage](https://img.shields.io/badge/coverage-backend%2096%25%20%C2%B7%20ANPR%2092%25%20%C2%B7%20web%2081%25-brightgreen)](#testing)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Live demo](https://img.shields.io/badge/live%20demo-not%20deployed%20yet-lightgrey)
@@ -30,6 +31,10 @@ The login page has one-click buttons for each role:
 The vehicle simulator keeps the demo busy with realistic traffic: residents, unknown
 visitors, guest passes, unclear plates, a watchlisted car, and overstays.
 
+**Downloads:** [v1.0.0 release notes](https://github.com/Akinchan-Jain-7/GateSense/releases/tag/v1.0.0) ·
+trained plate detector [`models-v1`](https://github.com/Akinchan-Jain-7/GateSense/releases/tag/models-v1)
+(`cd anpr && uv run python -m gatesense_anpr.download_model` fetches it and checks its SHA-256).
+
 **With a real camera:** your laptop webcam can be the gate camera. Hold up a plate: a
 resident's car is logged in, a new car goes to the guard to register. A live page shows
 what the camera sees and what the server decided
@@ -56,6 +61,26 @@ what the camera sees and what the server decided
   replays them in order when the connection is back. The server ignores duplicates.
 - **Privacy built in.** Phone numbers are masked in lists, and visitor data is deleted
   after 90 days. Admin actions go to an audit log.
+
+## Engineering highlights
+
+- **A visit state machine**, not status flags: every transition (approved → inside →
+  overstayed → escalated → exited) is validated and logged ([ADR-0005](docs/adr/0005-visit-state-machine.md)).
+- **One car = one event**, even with a camera reading the same plate 5 times a second:
+  Redis debounce per plate per lane, plus idempotency by event hash ([ADR-0006](docs/adr/0006-debounce-and-idempotency.md)).
+- **The server, not the camera, decides what a plate is**: position-aware repair of OCR
+  look-alikes (`O`/`0`, `B`/`8`), Indian and BH formats, bounded fuzzy matching ([ADR-0008](docs/adr/0008-plate-repair-and-fuzzy-matching.md)).
+- **Edge offline mode:** reads are buffered in SQLite at the gate and replayed in order
+  when the network is back; the server drops duplicates.
+- **Measured, not claimed:** a detector tested on a different state's photos, a load test
+  that found and fixed the first bottleneck, and a webcam benchmark where none of five
+  "improvements" beat noise, so none shipped ([results](anpr/eval/results/README.md)).
+- **Bugs found by running it for real**, each fixed with a test that reproduces it: a
+  failed save that silently dropped a car, the plate's "IND" mark breaking every real
+  webcam read, a double-registration button on the guard console.
+- **CI on every pull request:** 9 checks, including Postgres-backed backend tests, a
+  Windows job, Playwright journeys against the real API, both Docker stacks and a secret
+  scan. 15 decision records explain the why.
 
 ## Architecture
 
@@ -87,9 +112,10 @@ All numbers below were measured. Anything not measured yet says so.
 |---|---|
 | Plate detector (YOLOv8n), tested on 354 photos from a **different** dataset (Gujarat) than it was trained on | mAP@0.5 **0.745**, mAP@0.5:0.95 0.384, recall 0.87, precision 0.67 (validation: 0.848 / 0.598). Trained on 453 openly licensed images. Beat YOLOv8s by the rule fixed in advance ([details](anpr/eval/results/detector_comparison.md)) |
 | Plate detector speed on CPU (YOLOv8n, 1280×720 frame) | 65 ms FP32, 32 ms INT8 (static quantisation), on a 2-core machine ([details](anpr/eval/results/detector_latency.md)) |
-| OCR and full plate accuracy per condition (day / night / rain / two-wheeler) | Not measured yet: needs labelled local photos ([notebook 02](anpr/notebooks/), [anpr/DATASET.md](anpr/DATASET.md)) |
+| Plate reading on 140 webcam-like rendered cars (clear, small, blurry, tilted, dim, glare, phone screen), real EasyOCR | 80.0% exactly right after the server's repair; five reading tweaks measured, none better beyond noise ([details](anpr/eval/results/README.md#webcam-reading-settings-2026-11-24)) |
+| OCR and full plate accuracy on real photos, per condition | Not measured yet: needs labelled real photos (the webcam's *Save for testing* collects them; [anpr/DATASET.md](anpr/DATASET.md)) |
 | Gate-event ingestion, one API process, 40 simulated cameras | 159 req/s, p95 410 ms. The first bottleneck was found and fixed: +30% throughput with 80 vehicles, +58% with 500 ([method and numbers](docs/performance.md)) |
-| Tests (coverage minimums enforced in CI) | Backend: 507 tests, 96% coverage. ANPR: 63 tests, 87%. Web: 53 tests, 81% of lines. Simulator: 16 tests. Plus 3 Playwright journeys and 42 automated WCAG 2.1 AA checks |
+| Tests (coverage minimums enforced in CI) | Backend: 533 tests, 96% coverage. ANPR: 129 tests, 92%. Web: 56 tests, 81% of lines. Simulator: 17 tests. Plus 3 Playwright journeys and 42 automated WCAG 2.1 AA checks |
 
 ## Tech stack
 
@@ -189,8 +215,9 @@ Each big decision has an Architecture Decision Record in [docs/adr/](docs/adr/):
 
 - **No live deployment yet.** The images build and publish on every green `main`, and the
   deploy step waits for a server ([docs/deployment.md](docs/deployment.md)).
-- **OCR accuracy isn't measured yet.** The comparison notebook is ready but needs labelled
-  photos of real local plates (day, night, rain, two-wheelers).
+- **OCR accuracy on real photos isn't measured yet.** A rendered-plate benchmark compares
+  reading settings, but real accuracy needs labelled photos of real plates (day, night,
+  rain, two-wheelers); the webcam preview's *Save for testing* collects them.
 - **The detector was trained on a small dataset** (453 images). It reaches 0.745 mAP@0.5
   on photos from another state, which is usable but leaves room to improve. Guard
   corrections are stored so the model can be retrained on real gate data.
@@ -211,4 +238,9 @@ Each big decision has an Architecture Decision Record in [docs/adr/](docs/adr/):
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The trained detector weights (`models-v1`) follow Ultralytics YOLOv8's
+AGPL-3.0 ([ADR-0009](docs/adr/0009-anpr-pipeline-and-model-choice.md)).
+
+## Author
+
+Built by **Akinchan Jain** ([@Akinchan-Jain-7](https://github.com/Akinchan-Jain-7)).

@@ -15,18 +15,51 @@ The agent updates this file at the start and end of every session.
 | 7 | Hardening, offline mode, performance | ✅ Done | [#10](https://github.com/Akinchan-Jain-7/GateSense/pull/10) |
 | — | Closing the gaps in Phases 0–7 | ✅ Merged (detector results in #13) | [#12](https://github.com/Akinchan-Jain-7/GateSense/pull/12) |
 | 8 | Docker and deployment | 🟡 Built and merged; goes live once the owner picks a host | [#11](https://github.com/Akinchan-Jain-7/GateSense/pull/11) |
-| 9 | Polish, docs, release | ✅ Merged (owner publishes the two releases) | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
+| 9 | Polish, docs, release | ✅ Done; releases `v1.0.0` and `models-v1` published | [#14](https://github.com/Akinchan-Jain-7/GateSense/pull/14) |
 | — | Laptop webcam demo (live preview) | ✅ Merged; works on the owner's laptop | [#17](https://github.com/Akinchan-Jain-7/GateSense/pull/17) |
 | — | Reading accuracy, test photos, demo GIF | ✅ Done | [#18](https://github.com/Akinchan-Jain-7/GateSense/pull/18) |
+| — | HSRP "IND" mark fix (real webcam reads) | ✅ Done | [#20](https://github.com/Akinchan-Jain-7/GateSense/pull/20) |
+| — | Final polish: demo role switch fix, README, SECURITY.md | ✅ Done | branch `final-polish` |
 
-**Now:** everything except hosting is done (the owner asked to leave Oracle for later).
-Left: hosting (Phase 8 goes live), the `models-v1` model file upload, and ~30 webcam
-photos for real accuracy numbers. Left for the owner: publish the
-`models-v1` and `v1.0.0` releases (steps in the handoff below), then pick a host so
-Phase 8 goes live (`docs/deployment.md`, "What the owner does").
+**Now: only deployment is left (Phase 8 going live).** Everything else is built, tested,
+merged and released (`v1.0.0`, `models-v1`; the model download and hash check were
+verified from the release).
 
-**Waiting on the owner:** labelled photos for the OCR comparison (notebook 02), a Telegram
-bot token for one real end-to-end test, and a first run of the app on their own machine.
+**Optional, for the owner:** ~30 webcam photos with *Save for testing* for real OCR
+accuracy numbers; a Telegram bot token for one real end-to-end test; the 90-second demo
+video (`docs/demo-script.md`).
+
+## Deployment: pick up here
+
+The owner asked to do hosting last (Oracle Cloud Always Free, `docs/deployment.md`).
+State from the 2026-11-23 attempt (owner's account, home region Mumbai, Free Tier):
+
+- Network `gatesense-vcn` exists (public + private subnet); ingress 80/443 added to its
+  Default Security List. All four GHCR images are public.
+- **Creating the VM failed: "Out of capacity" for VM.Standard.A1.Flex in AD-1** (2 and
+  1 OCPU tried, ~7 attempts over 20 minutes). An SSH key pair was generated in the create
+  form; its private key is in the owner's Downloads.
+- Next: retry Create instance (Ubuntu 24.04, A1.Flex, the `gatesense-vcn` public subnet,
+  public IP on, initialization script
+  `curl -fsSL https://raw.githubusercontent.com/Akinchan-Jain-7/GateSense/main/scripts/oracle-cloud-init.sh | bash`).
+  If capacity stays out, the owner decides: Pay As You Go (still free within limits) or
+  another host from `docs/deployment.md`.
+
+## Final polish (2026-11-24, evening)
+
+- [x] **Bug fixed (web):** switching demo roles (e.g. guard → "Try the resident app") landed
+      on the old role's home with the new role's token (403s). Sign-in cleared the whole
+      cache, which orphaned the signed-in-user query; it now updates that entry in place.
+      Found in a live tour (PR #16 notes), reproduced in the real app, test added.
+- [x] Test helper `signInAs` really signs in now (the token store keeps an in-memory copy,
+      so writing localStorage alone did nothing); logins no longer leak between tests.
+- [x] README: release badge and downloads, engineering highlights, current numbers
+      (backend 533 tests 96%, ANPR 129 92%, web 56 81%, simulator 17), webcam benchmark row
+- [x] `SECURITY.md`; every relative link in all 54 markdown files checked
+- [x] Releases verified: `download_model` fetches `models-v1`, SHA-256 matches, model loads
+- [ ] **Owner, GitHub settings (this session can't change them):** About description and
+      topics, social preview image (`docs/assets/social-preview.png`), turn off the empty
+      Wiki and Projects tabs
 
 ## Reading accuracy, test photos, demo GIF (2026-11-24)
 
