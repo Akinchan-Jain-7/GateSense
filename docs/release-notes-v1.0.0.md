@@ -36,6 +36,14 @@ is published separately as the `models-v1` release (`plate_detector.onnx`, SHA-2
 - Inputs: webcam / RTSP, video file, image folder, simulated reads
 - Offline mode: reads buffered in SQLite and replayed in order when the API is back
 
+**Laptop webcam demo**
+- `gatesense-anpr --source 0 --preview`: a local page with the camera picture, plate boxes
+  and the server's decision for each car; one webcam covers the entry and exit lanes
+- `python -m app.webcam_devices` sets the webcam up as two cameras; `scripts/webcam-demo.ps1`
+  starts everything on Windows in one command
+- *Register this visitor* opens the guard console's form prefilled for a new car
+- *Save for testing* collects labelled webcam photos for real accuracy measurements
+
 **Web app**
 - Guard console (dark by default, Hindi and English), Resident PWA, Admin dashboard with
   analytics, management tables, watchlist, audit log and settings; a landing page
@@ -57,11 +65,12 @@ is published separately as the `models-v1` release (`plate_detector.onnx`, SHA-2
 | Plate detector (YOLOv8n), 354 test photos from a different dataset | mAP@0.5 0.745, mAP@0.5:0.95 0.384, recall 0.87 |
 | Detector speed on CPU, 1280×720, 2 cores | 65 ms FP32, 32 ms INT8 static |
 | Gate-event ingestion, one API process | 159 req/s, p95 410 ms; first bottleneck fixed (+30% / +58%) |
-| Tests | backend 507 (96%), ANPR 63 (87%), web 53 (81% lines), simulator 16, 3 Playwright journeys, 42 accessibility checks |
+| Reading settings on 140 rendered webcam-like cars (7 conditions) | 80.0% right after the server's repair; five tweaks measured, none better beyond noise |
+| Tests | backend 528 (96%), ANPR 124 (92%), web 55 (81% lines), simulator 17, 3 Playwright journeys, 42 accessibility checks |
 
 ## Not in this release
 
-- OCR accuracy per condition (needs labelled local photos)
+- OCR accuracy per condition on real photos (the webcam's *Save for testing* collects them)
 - A live public demo (waits for the hosting decision in ADR-0014)
 - Multi-society tenancy, SMS and voice calls, native apps, tailgating detection
 
