@@ -70,6 +70,17 @@ def test_two_line_plates_are_read_top_to_bottom() -> None:
     assert join_lines([]) is None
 
 
+@pytest.mark.parametrize("mark", ["IND", "INO", "in0", "1ND"])
+def test_join_lines_drops_the_hsrp_ind_mark(mark: str) -> None:
+    """Real webcam reads ended in 'IND': the mark sits below the number on the blue strip."""
+    result = join_lines([("HR76A0005", 0.9, 10.0), (mark, 0.6, 30.0)])
+    assert result == OcrResult("HR76A0005", 0.9)
+
+
+def test_join_lines_keeps_a_lone_piece() -> None:
+    assert join_lines([("IND", 0.5, 0.0)]) == OcrResult("IND", 0.5)
+
+
 def test_small_crops_are_upscaled_for_ocr() -> None:
     small = np.zeros((20, 80, 3), dtype=np.uint8)
     assert prepare_crop(small).shape[:2] == (64, 256)

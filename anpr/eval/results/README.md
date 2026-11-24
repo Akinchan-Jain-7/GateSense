@@ -41,6 +41,14 @@ So the defaults stay as they were. The contrast boost (`ANPR_OCR_CONTRAST=true`)
 per-character voting (`ANPR_TRACK_VOTING=chars`) are optional settings. Measure them on
 real webcam photos (`evaluate_pipeline.py --contrast`) before switching them on.
 
-Limits of the bench: rendered text in an OpenCV font, not the HSRP font; random district
+**What the bench missed, found on the owner's real webcam the same evening:** every real
+read ended in `IND` (`HR76AOOO5IND`), the HSRP mark at the bottom of the blue strip, read
+*after* the number because it sits lower. The server only removed `IND` at the start, so
+none of those reads became a plate. Fixed at both ends: the camera drops an OCR piece that
+is only the mark, and the server strips `IND`/`INO`/`IN0`/`1ND` at either end
+(tests use the real reads). The bench drew the mark too small for OCR to see.
+
+Limits of the bench: rendered text in an OpenCV font, not the HSRP font; the IND mark
+too small to be read (see above); random district
 numbers (some, like `DL80`, don't exist, which costs every setting equally); the detector
 is simulated (true box with random slack), only OCR is real.

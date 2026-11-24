@@ -132,7 +132,11 @@ TO_LETTER = {
 MAX_FIXES = 3
 
 # "IND" printed on high-security registration plates (HSRP); OCR sometimes includes it.
-HSRP_PREFIX = "IND"
+# It sits at the bottom of the blue strip, *below* the number's top line, so OCR that
+# reads top to bottom often puts it at the end ('HR76A0005IND'), and reads its D as O
+# or 0 ('...INO'). A plate never starts or ends with these letters, so dropping them is
+# safe: the shortened text still has to make a valid plate.
+HSRP_MARK = re.compile(r"^[I1L]N[DO0]|[I1L]N[DO0]$")
 
 # Small penalties for plate shapes that are legal but uncommon. They only break ties
 # between readings that need a similar number of fixes, e.g. "KAO5MNOO42" could be
@@ -247,11 +251,13 @@ def read_ocr_plate(text: str) -> PlateReading | None:
     'DLO1AB1234' -> DL01AB1234 (1 fix: the O sits where a digit must be)
     'MH12A81234' -> MH12AB1234 (1 fix: the 8 sits where a series letter must be)
     'IND DL01AB1234' -> DL01AB1234 (HSRP "IND" mark dropped)
+    'HR76AOOO5IND' -> HR76A0005 (the mark read after the number, plus 3 fixes)
     """
     cleaned = clean_plate(text)
     candidates = [cleaned]
-    if cleaned.startswith(HSRP_PREFIX):
-        candidates.append(cleaned.removeprefix(HSRP_PREFIX))
+    without_mark = HSRP_MARK.sub("", cleaned, count=2)
+    if without_mark != cleaned:
+        candidates.append(without_mark)
 
     readings = [
         reading

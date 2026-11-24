@@ -4,6 +4,7 @@ Both engines are optional installs (they pull in PyTorch or PaddlePaddle). Which
 the default is decided by measured accuracy in notebooks/02_evaluate_ocr.ipynb (ADR-0009).
 """
 
+import re
 from typing import Any, Protocol
 
 import cv2
@@ -44,13 +45,23 @@ def enhance_contrast(plate: Image) -> Image:
     return np.asarray(cv2.cvtColor(clahe.apply(grey), cv2.COLOR_GRAY2BGR), dtype=np.uint8)
 
 
+# The "IND" mark on the blue strip of high-security plates (HSRP), as OCR reads it.
+HSRP_MARK = re.compile(r"^[I1L]N[DO0]$")
+
+
 def join_lines(pieces: list[tuple[str, float, float]]) -> OcrResult | None:
     """Merge text pieces (text, confidence, top y) into one plate string.
 
     Two-line plates (common on two-wheelers) come back as two pieces; reading them top to
     bottom gives the same string as a one-line plate. Confidence = the weakest piece.
+
+    A piece that is only the HSRP "IND" mark is dropped: it sits low on the blue strip,
+    so top-to-bottom order put it *after* the number ('HR76A0005IND'), and a plate line
+    always has digits, so it can't be part of the number.
     """
     pieces = [(t, c, y) for t, c, y in pieces if t.strip()]
+    if len(pieces) > 1:
+        pieces = [p for p in pieces if not HSRP_MARK.match(re.sub(r"[^A-Z0-9]", "", p[0].upper()))]
     if not pieces:
         return None
     pieces.sort(key=lambda piece: piece[2])
