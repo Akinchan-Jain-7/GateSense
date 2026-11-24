@@ -49,6 +49,22 @@ return false
 """
 
 
+# Undo a mark whose event was never saved (storage or database failed after the check),
+# so the camera's retry starts a new event instead of being folded into nothing. Only
+# deletes the key if it still names that event: a newer window is left alone.
+_RELEASE_SCRIPT = """
+local current = redis.call('GET', KEYS[1])
+if current then
+  local sep = string.find(current, '|', 1, true)
+  if string.sub(current, sep + 1) == ARGV[1] then
+    redis.call('DEL', KEYS[1])
+    return 1
+  end
+end
+return 0
+"""
+
+
 def debounce_key(device_id: uuid.UUID, plate: str) -> str:
     return f"{KEY_PREFIX}:{device_id}:{plate}"
 
@@ -83,3 +99,11 @@ async def check_and_mark(
     if result is None:
         return None
     return uuid.UUID(result.decode() if isinstance(result, bytes) else str(result))
+
+
+async def release(redis: Redis, *, device_id: uuid.UUID, plate: str, event_id: uuid.UUID) -> None:
+    """Forget the window `event_id` started, if it is still the current one."""
+    try:
+        await redis.eval(_RELEASE_SCRIPT, 1, debounce_key(device_id, plate), str(event_id))
+    except RedisError:
+        logger.warning("could not release a debounce mark", exc_info=True)
