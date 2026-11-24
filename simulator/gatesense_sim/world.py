@@ -104,8 +104,13 @@ class World:
         rng: random.Random | None = None,
         clock: Callable[[], float] = time.monotonic,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        leave_devices: tuple[str, ...] = ("Laptop webcam",),
     ) -> None:
         self.api = api
+        # Cameras whose name starts with one of these belong to a real camera (the laptop
+        # webcam demo, docs/webcam-demo.md): their keys are left alone, and no simulated
+        # traffic is sent under their name.
+        self.leave_devices = leave_devices
         self.admin = admin_email
         self.guard = guard_email
         self.speed = speed
@@ -126,6 +131,8 @@ class World:
         entry: list[str] = []
         exit_: list[str] = []
         for device in self.api.all_pages(self.admin, "/api/v1/devices", is_active=True):
+            if str(device.get("name", "")).startswith(self.leave_devices):
+                continue
             key = self.api.call(self.admin, "POST", f"/api/v1/devices/{device['id']}/rotate-key")
             (entry if device["direction"] == "entry" else exit_).append(key["api_key"])
         vehicles = {

@@ -63,7 +63,13 @@ class FakeApi:
 
     def answer(self, method: str, path: str) -> Any:
         if path == "/api/v1/devices":
-            return page([{"id": "d1", "direction": "entry"}, {"id": "d2", "direction": "exit"}])
+            return page(
+                [
+                    {"id": "d1", "name": "Main Gate - entry camera", "direction": "entry"},
+                    {"id": "d2", "name": "Main Gate - exit camera", "direction": "exit"},
+                    {"id": "d3", "name": "Laptop webcam - entry", "direction": "entry"},
+                ]
+            )
         if path.endswith("/rotate-key"):
             return {"api_key": "key-entry" if "d1" in path else "key-exit"}
         if path == "/api/v1/vehicles":
@@ -122,6 +128,13 @@ def test_bootstrap_rotates_keys_and_loads_the_society(fake: FakeApi) -> None:
     assert society.vehicles == {"UP16AB1234": "f1"}
     assert society.residents == {"f1": ["priya@example.com"]}
     assert society.inside == {"UP16AB1234"}  # cars start at home
+
+
+def test_bootstrap_leaves_the_laptop_webcam_alone(fake: FakeApi) -> None:
+    """Rotating its key would break a webcam demo running next to the simulator."""
+    world_for(fake).bootstrap()
+    rotated = [path for _, path, _ in fake.calls if path.endswith("/rotate-key")]
+    assert rotated == ["/api/v1/devices/d1/rotate-key", "/api/v1/devices/d2/rotate-key"]
 
 
 def test_a_resident_car_leaves_then_comes_back(fake: FakeApi) -> None:

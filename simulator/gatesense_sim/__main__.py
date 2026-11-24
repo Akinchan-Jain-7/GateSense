@@ -3,7 +3,8 @@
     gatesense-sim --api http://127.0.0.1:8000 --speed 1
 
 Settings can also come from the environment: SIM_API_URL, SIM_PASSWORD (the demo
-password), SIM_ADMIN_EMAIL, SIM_GUARD_EMAIL, SIM_SPEED, SIM_TICK_SECONDS.
+password), SIM_ADMIN_EMAIL, SIM_GUARD_EMAIL, SIM_SPEED, SIM_TICK_SECONDS,
+SIM_LEAVE_DEVICES.
 """
 
 import argparse
@@ -36,6 +37,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--tick", type=float, default=float(env("SIM_TICK_SECONDS", "5")))
     parser.add_argument("--seed", type=int, help="random seed (repeatable runs)")
     parser.add_argument("--minutes", type=float, help="stop after this many minutes")
+    parser.add_argument(
+        "--leave-devices",
+        default=env("SIM_LEAVE_DEVICES", "Laptop webcam"),
+        help="comma-separated camera name prefixes the simulator must not use (real cameras)",
+    )
     return parser.parse_args(argv)
 
 
@@ -49,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         guard_email=args.guard,
         speed=args.speed,
         rng=random.Random(args.seed),  # noqa: S311 - demo traffic
+        leave_devices=tuple(p.strip() for p in args.leave_devices.split(",") if p.strip()),
     )
     deadline = time.monotonic() + args.minutes * 60 if args.minutes else None
     bootstrapped = False
